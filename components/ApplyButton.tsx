@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { sendProposalNotification } from '@/app/actions'
 
 export default function ApplyButton({ taskId }: { taskId: string }) {
   const router = useRouter()
@@ -39,17 +40,7 @@ export default function ApplyButton({ taskId }: { taskId: string }) {
       return
     }
 
-    try {
-      const res = await fetch('/api/notify-proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, message, bidAmount: bid }),
-      })
-      const data = await res.json()
-      console.log('Email response:', data)
-    } catch (err) {
-      console.error('Email error:', err)
-    }
+    await sendProposalNotification(taskId, message, Number(bid))
 
     setDone(true)
     setShowForm(false)
@@ -57,9 +48,7 @@ export default function ApplyButton({ taskId }: { taskId: string }) {
   }
 
   if (done) return (
-    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: '#4ade80' }}>
-      applied ✓
-    </span>
+    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: '#4ade80' }}>applied ✓</span>
   )
 
   if (showForm) return (
@@ -81,24 +70,13 @@ export default function ApplyButton({ taskId }: { taskId: string }) {
         style={{ marginBottom: 8, fontSize: 13 }}
       />
       {error && (
-        <p style={{ fontFamily: 'var(--mono)', fontSize: 12, color: '#f87171', marginBottom: 8 }}>
-          {error}
-        </p>
+        <p style={{ fontFamily: 'var(--mono)', fontSize: 12, color: '#f87171', marginBottom: 8 }}>{error}</p>
       )}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="btn btn-accent"
-          style={{ fontSize: 12, flex: 1, opacity: loading ? 0.6 : 1 }}
-        >
+        <button onClick={handleSubmit} disabled={loading} className="btn btn-accent" style={{ fontSize: 12, flex: 1, opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Sending...' : 'Submit →'}
         </button>
-        <button
-          onClick={() => { setShowForm(false); setError('') }}
-          className="btn btn-outline"
-          style={{ fontSize: 12 }}
-        >
+        <button onClick={() => { setShowForm(false); setError('') }} className="btn btn-outline" style={{ fontSize: 12 }}>
           Cancel
         </button>
       </div>
