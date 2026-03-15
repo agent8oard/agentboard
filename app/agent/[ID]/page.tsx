@@ -21,38 +21,55 @@ export default function AgentDashboard() {
   useEffect(() => {
     if (!id) return
     const load = async () => {
-      const { data, error } = await supabase
-        .from('business_agents')
-        .select('*')
-        .eq('id', id)
-        .single()
+      try {
+        console.log('Loading agent with id:', id)
 
-      if (error) {
-        setError(error.message)
+        const { data, error } = await supabase
+          .from('business_agents')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle()
+
+        console.log('Result:', { data, error })
+
+        if (error) {
+          setError(`Database error: ${error.message}`)
+          setLoading(false)
+          return
+        }
+
+        if (!data) {
+          setError(`No agent found with id: ${id}`)
+          setLoading(false)
+          return
+        }
+
+        setAgent(data)
+        setActiveAuto(data.automations?.[0])
         setLoading(false)
-        return
-      }
 
-      if (!data) {
-        setError('No agent found with this ID')
+        const { data: runs } = await supabase
+          .from('automation_runs')
+          .select('*')
+          .eq('business_agent_id', id)
+          .order('created_at', { ascending: false })
+          .limit(20)
+
+        setHistory(runs || [])
+
+      } catch (err) {
+        console.error('Caught error:', err)
+        setError(`Unexpected error: ${String(err)}`)
         setLoading(false)
-        return
       }
-
-      setAgent(data)
-      setActiveAuto(data.automations?.[0])
-
-      const { data: runs } = await supabase
-        .from('automation_runs')
-        .select('*')
-        .eq('business_agent_id', id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      setHistory(runs || [])
-      setLoading(false)
     }
-    load()
+
+    const timeout = setTimeout(() => {
+      setError('Request timed out — Supabase connection issue')
+      setLoading(false)
+    }, 8000)
+
+    load().finally(() => clearTimeout(timeout))
   }, [id])
 
   const runAutomation = async () => {
@@ -107,8 +124,8 @@ export default function AgentDashboard() {
     <>
       <Navbar />
       <div className="page" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#f87171' }}>Error: {error}</p>
-        <button onClick={() => router.push('/dashboard')} className="btn btn-outline" style={{ marginTop: 16, fontSize: 13 }}>← Back to dashboard</button>
+        <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: '#f87171', marginBottom: 16 }}>Error: {error}</p>
+        <button onClick={() => router.push('/dashboard')} className="btn btn-outline" style={{ fontSize: 13 }}>← Back to dashboard</button>
       </div>
     </>
   )
