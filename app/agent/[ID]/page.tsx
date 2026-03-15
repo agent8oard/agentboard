@@ -66,7 +66,12 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
         input,
         output: data.output,
       })
-      setHistory(prev => [{ automation_type: activeAuto.title, input, output: data.output, created_at: new Date().toISOString() }, ...prev])
+      setHistory(prev => [{
+        automation_type: activeAuto.title,
+        input,
+        output: data.output,
+        created_at: new Date().toISOString()
+      }, ...prev])
     }
     setRunning(false)
   }
@@ -90,7 +95,6 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
       <Navbar />
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
           <div>
             <div className="section-label">your ai agent</div>
@@ -105,7 +109,6 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 24 }}>
 
-          {/* Left — Automations list */}
           <div>
             <div className="label" style={{ marginBottom: 12 }}>automations</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -120,13 +123,14 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
                   }}>
                   <div style={{ fontSize: 20, marginBottom: 4 }}>{auto.icon}</div>
                   <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500 }}>{auto.title}</div>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.6, marginTop: 2 }}>{auto.description.slice(0, 50)}...</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.6, marginTop: 2 }}>
+                    {auto.description?.slice(0, 50)}...
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Right — Active automation */}
           <div>
             {activeAuto && (
               <div>
@@ -162,7 +166,7 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
                       <div className="label">{activeAuto.outputLabel}</div>
                       <button onClick={copyOutput} className="btn btn-outline" style={{ fontSize: 11, padding: '5px 12px' }}>Copy →</button>
                     </div>
-                    <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap', color: 'var(--fg)' }}>{output}</div>
+                    <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{output}</div>
                   </div>
                 )}
 
