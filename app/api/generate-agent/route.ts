@@ -4,6 +4,10 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.json()
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'Missing API key' }, { status: 500 })
+    }
+
     const prompt = `You are an expert AI consultant helping businesses set up AI agents. Based on this business information, create a complete AI agent package.
 
 Business Name: ${form.businessName}
@@ -14,46 +18,24 @@ Agent Name: ${form.agentName}
 Tone: ${form.tone}
 Extra requirements: ${form.extraInfo || 'None'}
 
-Create a complete AI agent package. Respond with ONLY a valid JSON object, absolutely no markdown, no backticks, no extra text before or after:
+Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
 {
   "name": "agent name",
-  "description": "2-3 sentence description of what this agent does for the business",
+  "description": "2-3 sentence description",
   "category": "Customer support",
   "tags": ["tag1", "tag2", "tag3"],
-  "systemPrompt": "A detailed system prompt. Start with: You are [name], an AI agent for [business]. Your role is to... Include specific instructions for each task, how to handle edge cases, what tone to use, and what to do when unsure.",
-  "setupSteps": [
-    "Step 1: Go to chat.openai.com and create a free account",
-    "Step 2: Click on GPT-4 or any model and paste your system prompt",
-    "Step 3: ...",
-    "Step 4: ...",
-    "Step 5: ..."
-  ],
-  "useCases": [
-    {
-      "task": "task name",
-      "howTo": "exactly how to use the agent for this task in 2-3 sentences",
-      "examplePrompt": "an example prompt the business owner can copy and use"
-    }
-  ],
-  "emailTemplates": [
-    {
-      "subject": "email subject line",
-      "body": "full email body the agent can send",
-      "useCase": "when to use this email"
-    }
-  ],
-  "tips": [
-    "Practical tip 1 for getting the most out of this agent",
-    "Practical tip 2",
-    "Practical tip 3"
-  ]
+  "systemPrompt": "detailed system prompt",
+  "setupSteps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
+  "useCases": [{"task": "task name", "howTo": "how to use", "examplePrompt": "example"}],
+  "emailTemplates": [{"subject": "subject", "body": "email body", "useCase": "when to use"}],
+  "tips": ["tip 1", "tip 2", "tip 3"]
 }`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
@@ -64,10 +46,15 @@ Create a complete AI agent package. Respond with ONLY a valid JSON object, absol
     })
 
     const data = await response.json()
+    console.log('Anthropic response status:', response.status)
+    console.log('Anthropic response:', JSON.stringify(data).slice(0, 200))
+
+    if (!response.ok) {
+      return NextResponse.json({ error: `Anthropic error: ${data.error?.message || 'Unknown'}` }, { status: 500 })
+    }
 
     if (!data.content || !data.content[0]) {
-      console.error('Anthropic error:', JSON.stringify(data))
-      return NextResponse.json({ error: 'Failed to generate' }, { status: 500 })
+      return NextResponse.json({ error: 'No content returned' }, { status: 500 })
     }
 
     const text = data.content[0].text
@@ -77,7 +64,7 @@ Create a complete AI agent package. Respond with ONLY a valid JSON object, absol
     try {
       result = JSON.parse(cleaned)
     } catch (parseErr) {
-      console.error('Parse error:', parseErr, 'Text was:', text)
+      console.error('Parse error, text was:', text.slice(0, 500))
       return NextResponse.json({ error: 'Failed to parse response' }, { status: 500 })
     }
 
@@ -85,6 +72,6 @@ Create a complete AI agent package. Respond with ONLY a valid JSON object, absol
 
   } catch (err) {
     console.error('Generate agent error:', err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
