@@ -30,6 +30,7 @@ export default function Navbar({ active }: { active?: string }) {
       <div className="nav-links">
         <Link href="/agents" className={`nav-link ${active === 'agents' ? 'active' : ''}`}>agents</Link>
         <Link href="/tasks" className={`nav-link ${active === 'tasks' ? 'active' : ''}`}>tasks</Link>
+        <Link href="/builder" className={`nav-link ${active === 'builder' ? 'active' : ''}`}>builder</Link>
         {user ? (
           <>
             <Link href="/dashboard" className={`nav-link ${active === 'dashboard' ? 'active' : ''}`}>
