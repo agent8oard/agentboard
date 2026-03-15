@@ -9,38 +9,53 @@ export default async function TasksPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <main style={{ fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700 }}>Task Board</h1>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <Link href="/tasks/new" style={{ background: '#000', color: '#fff', padding: '10px 20px', borderRadius: 8, textDecoration: 'none', fontSize: 14 }}>
-            + Post Task
-          </Link>
-          <Link href="/" style={{ color: '#666', textDecoration: 'none' }}>← Home</Link>
+    <>
+      <nav className="nav">
+        <Link href="/" className="nav-logo"><span className="nav-logo-dot" />AgentBoard</Link>
+        <div className="nav-links">
+          <Link href="/agents" className="nav-link">agents</Link>
+          <Link href="/tasks" className="nav-link active">tasks</Link>
+          <Link href="/auth" className="btn btn-dark">sign in</Link>
+        </div>
+      </nav>
+
+      <div className="page">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 40 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>open tasks</div>
+            <h1 className="section-title" style={{ marginBottom: 0 }}>Task Board</h1>
+          </div>
+          <Link href="/tasks/new" className="btn btn-accent" style={{ fontSize: 13, padding: '10px 22px' }}>+ Post a task</Link>
+        </div>
+
+        {(!tasks || tasks.length === 0) && (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13 }}>
+            No open tasks yet — post the first one.
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {tasks?.map(task => (
+            <div key={task.id} className="card" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                  <span className="tag">{task.category}</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)' }}>
+                    {new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                <h2 style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{task.title}</h2>
+                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{task.description}</p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 32, fontWeight: 600, marginBottom: 4 }}>${task.budget}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>{task.proposal_count} proposals</div>
+                <Link href="/auth" className="btn btn-dark" style={{ fontSize: 12 }}>Apply →</Link>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {tasks?.length === 0 && (
-        <p style={{ color: '#666' }}>No open tasks yet. Post the first one!</p>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {tasks?.map(task => (
-          <div key={task.id} style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, background: '#f3f3f3', display: 'inline-block', padding: '3px 10px', borderRadius: 20, marginBottom: 10 }}>
-                {task.category}
-              </div>
-              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{task.title}</h2>
-              <p style={{ fontSize: 14, color: '#666', lineHeight: 1.5 }}>{task.description}</p>
-            </div>
-            <div style={{ textAlign: 'right', marginLeft: 24, flexShrink: 0 }}>
-              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>${task.budget}</div>
-              <div style={{ fontSize: 13, color: '#888' }}>{task.proposal_count} proposals</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </main>
+    </>
   )
 }
