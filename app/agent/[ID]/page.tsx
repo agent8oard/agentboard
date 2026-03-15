@@ -2,10 +2,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 
-export default function AgentDashboard({ params }: { params: { id: string } }) {
+export default function AgentDashboard() {
   const router = useRouter()
+  const params = useParams()
+  const id = params.id as string
+
   const [agent, setAgent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeAuto, setActiveAuto] = useState<any>(null)
@@ -15,24 +18,32 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
   const [history, setHistory] = useState<any[]>([])
 
   useEffect(() => {
+    if (!id) return
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth'); return }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('business_agents')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single()
 
-      if (!data) { router.push('/dashboard'); return }
+      console.log('Agent data:', data, 'Error:', error)
+
+      if (!data) {
+        console.log('No data found, redirecting')
+        router.push('/dashboard')
+        return
+      }
+
       setAgent(data)
       setActiveAuto(data.automations?.[0])
 
       const { data: runs } = await supabase
         .from('automation_runs')
         .select('*')
-        .eq('business_agent_id', params.id)
+        .eq('business_agent_id', id)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -40,7 +51,7 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
       setLoading(false)
     }
     load()
-  }, [params.id])
+  }, [id])
 
   const runAutomation = async () => {
     if (!input.trim() || !activeAuto) return
@@ -61,7 +72,7 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
     if (data.output) {
       setOutput(data.output)
       await supabase.from('automation_runs').insert({
-        business_agent_id: params.id,
+        business_agent_id: id,
         automation_type: activeAuto.title,
         input,
         output: data.output,
@@ -108,7 +119,6 @@ export default function AgentDashboard({ params }: { params: { id: string } }) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 24 }}>
-
           <div>
             <div className="label" style={{ marginBottom: 12 }}>automations</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
