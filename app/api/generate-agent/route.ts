@@ -8,26 +8,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing API key' }, { status: 500 })
     }
 
-    const prompt = `You are an expert AI consultant helping businesses set up AI agents. Based on this business information, create a complete AI agent package.
+    const prompt = `You are an expert AI business consultant. A business owner has filled out a form describing their business. Your job is to design a completely custom AI automation suite specifically for their business needs.
 
 Business Name: ${form.businessName}
 Industry: ${form.industry}
 Description: ${form.description}
-Tasks needed: ${form.tasks.join(', ')}
+Tasks they mentioned: ${form.tasks.join(', ')}
 Agent Name: ${form.agentName}
 Tone: ${form.tone}
 Extra requirements: ${form.extraInfo || 'None'}
 
-Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
+Based on this SPECIFIC business, design a custom set of AI automations they actually need. Do not use a fixed template - think deeply about what THIS business specifically needs.
+
+Respond with ONLY a valid JSON object, no markdown, no backticks:
 {
   "name": "agent name",
-  "description": "2-3 sentence description",
+  "description": "2-3 sentence description of what this agent does",
   "category": "Customer support",
   "tags": ["tag1", "tag2", "tag3"],
-  "systemPrompt": "detailed system prompt",
-  "setupSteps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
-  "useCases": [{"task": "task name", "howTo": "how to use", "examplePrompt": "example"}],
-  "emailTemplates": [{"subject": "subject", "body": "email body", "useCase": "when to use"}],
+  "systemPrompt": "detailed system prompt for this specific business",
+  "automations": [
+    {
+      "id": "unique_id",
+      "title": "Automation title",
+      "description": "What this automation does for this specific business",
+      "icon": "single emoji",
+      "inputLabel": "What the user needs to paste or type to use this",
+      "inputPlaceholder": "example of what to paste here",
+      "outputLabel": "What the AI will generate",
+      "promptTemplate": "The Claude prompt to run this automation. Use {{input}} where the user input goes and include all business context: business name, tone, industry etc"
+    }
+  ],
+  "setupSteps": ["step 1", "step 2", "step 3"],
   "tips": ["tip 1", "tip 2", "tip 3"]
 }`
 
@@ -46,11 +58,9 @@ Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
     })
 
     const data = await response.json()
-    console.log('Anthropic response status:', response.status)
-    console.log('Anthropic response:', JSON.stringify(data).slice(0, 200))
 
     if (!response.ok) {
-      return NextResponse.json({ error: `Anthropic error: ${data.error?.message || 'Unknown'}` }, { status: 500 })
+      return NextResponse.json({ error: `Anthropic error: ${data.error?.message}` }, { status: 500 })
     }
 
     if (!data.content || !data.content[0]) {
@@ -64,7 +74,7 @@ Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
     try {
       result = JSON.parse(cleaned)
     } catch (parseErr) {
-      console.error('Parse error, text was:', text.slice(0, 500))
+      console.error('Parse error:', text.slice(0, 500))
       return NextResponse.json({ error: 'Failed to parse response' }, { status: 500 })
     }
 

@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const [agents, setAgents] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [proposals, setProposals] = useState<any[]>([])
+  const [businessAgents, setBusinessAgents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [openTask, setOpenTask] = useState<string | null>(null)
 
@@ -18,16 +19,25 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth'); return }
 
-      const [{ data: a }, { data: t }, { data: p }] = await Promise.all([
+      const [{ data: a }, { data: t }, { data: p }, { data: ba }] = await Promise.all([
         supabase.from('agents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('tasks').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('proposals').select('*').order('created_at', { ascending: false }),
+        supabase.from('business_agents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
       ])
 
       setAgents(a || [])
       setTasks(t || [])
       setProposals(p || [])
+      setBusinessAgents(ba || [])
       setLoading(false)
+
+      supabase
+        .channel('proposals')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'proposals' }, payload => {
+          setProposals(prev => [payload.new as any, ...prev])
+        })
+        .subscribe()
     }
     load()
   }, [])
@@ -50,8 +60,35 @@ export default function DashboardPage() {
         <div style={{ marginBottom: 48 }}>
           <div className="section-label">account</div>
           <h1 style={{ fontFamily: 'var(--serif)', fontSize: 48, fontWeight: 400, marginBottom: 8 }}>My Dashboard</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 15 }}>Your listed agents and posted tasks.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 15 }}>Your AI agents, tasks, and automation programs.</p>
         </div>
+
+        {/* My AI Agent Programs */}
+        <div style={{ marginBottom: 56 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400 }}>My AI Agent Programs</h2>
+            <Link href="/builder" className="btn btn-accent" style={{ fontSize: 12, padding: '8px 18px' }}>+ Build agent</Link>
+          </div>
+          {businessAgents.length === 0 ? (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 40, textAlign: 'center' }}>
+              <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>No AI agent programs yet.</p>
+              <Link href="/builder" className="btn btn-outline" style={{ fontSize: 13 }}>Build your first agent →</Link>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {businessAgents.map(ba => (
+                <Link href={`/agent/${ba.id}`} key={ba.id} className="card" style={{ display: 'block' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>{ba.industry}</div>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 400, marginBottom: 4 }}>{ba.agent_name}</h3>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{ba.business_name}</p>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)' }}>{ba.automations?.length} automations →</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <hr className="divider" />
 
         {/* My Agents */}
         <div style={{ marginBottom: 56 }}>
@@ -59,7 +96,6 @@ export default function DashboardPage() {
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400 }}>My Agents</h2>
             <Link href="/agents/new" className="btn btn-accent" style={{ fontSize: 12, padding: '8px 18px' }}>+ List agent</Link>
           </div>
-
           {agents.length === 0 ? (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 40, textAlign: 'center' }}>
               <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>You haven't listed any agents yet.</p>
@@ -93,7 +129,6 @@ export default function DashboardPage() {
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400 }}>My Tasks</h2>
             <Link href="/tasks/new" className="btn btn-accent" style={{ fontSize: 12, padding: '8px 18px' }}>+ Post task</Link>
           </div>
-
           {tasks.length === 0 ? (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 40, textAlign: 'center' }}>
               <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>You haven't posted any tasks yet.</p>
@@ -125,18 +160,13 @@ export default function DashboardPage() {
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, marginBottom: 8 }}>${task.budget}</div>
                         {taskProposals.length > 0 && (
-                          <button
-                            onClick={() => setOpenTask(isOpen ? null : task.id)}
-                            className="btn btn-outline"
-                            style={{ fontSize: 11 }}
-                          >
+                          <button onClick={() => setOpenTask(isOpen ? null : task.id)} className="btn btn-outline" style={{ fontSize: 11 }}>
                             {isOpen ? 'hide proposals' : 'view proposals'}
                           </button>
                         )}
                       </div>
                     </div>
 
-                    {/* Proposals panel */}
                     {isOpen && taskProposals.length > 0 && (
                       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 16px 16px', padding: '20px 24px' }}>
                         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 }}>
