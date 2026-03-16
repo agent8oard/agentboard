@@ -1,380 +1,402 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
+'use client'
+import { useState, useRef, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Navbar from '@/components/Navbar'
+import { useRouter } from 'next/navigation'
 
-export async function POST(req: NextRequest) {
-  try {
-    const { message, agent, history } = await req.json()
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  emailSent?: boolean
+  documentId?: string
+  documentType?: string
+  invoiceHTML?: string
+}
 
-    const today = new Date()
-    const dueDate = new Date(today)
-    dueDate.setDate(dueDate.getDate() + 30)
-    const formatDate = (d: Date) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+const QUICK_ACTIONS = [
+  { icon: '📧', label: 'Reply to customer', prompt: 'Help me reply to this customer message: ' },
+  { icon: '📄', label: 'Create invoice', prompt: 'Create and send an invoice to ' },
+  { icon: '📝', label: 'Write contract', prompt: 'Draft a service contract for ' },
+  { icon: '📱', label: 'Social media post', prompt: 'Write a social media post about ' },
+  { icon: '📊', label: 'Weekly report', prompt: 'Generate a weekly business report covering ' },
+  { icon: '✉️', label: 'Follow-up email', prompt: 'Write a follow-up email to ' },
+  { icon: '🎯', label: 'Marketing email', prompt: 'Write a marketing email campaign about ' },
+  { icon: '😤', label: 'Handle complaint', prompt: 'Help me respond to this customer complaint: ' },
+  { icon: '💼', label: 'Business proposal', prompt: 'Write a business proposal for ' },
+  { icon: '📋', label: 'Meeting agenda', prompt: 'Create a meeting agenda for ' },
+  { icon: '👋', label: 'Welcome message', prompt: 'Write a welcome message for new customers: ' },
+  { icon: '⚡', label: 'Custom task', prompt: '' },
+]
 
-    const systemPrompt = `You are ${agent.agent_name}, a professional AI business agent for ${agent.business_name}.
-Industry: ${agent.industry}
-Tone: ${agent.tone}
+export default function AgentClient({ agent }: { agent: Record<string, unknown> }) {
+  const router = useRouter()
+  const [view, setView] = useState<'home' | 'chat'>('home')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [running, setRunning] = useState(false)
+  const [recentRuns, setRecentRuns] = useState<Record<string, unknown>[]>([])
+  const [previewDoc, setPreviewDoc] = useState<{ html: string; type: string } | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-You are concise, professional, and action-oriented. You complete tasks immediately.
+  useEffect(() => { loadRecentRuns() }, [])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-TODAY: ${formatDate(today)}
-DUE DATE (invoices): ${formatDate(dueDate)}
-
-RULES:
-- Be brief. Never repeat yourself.
-- Never use ** for bold. Use plain text only.
-- Keep all documents SHORT and professional
-- Confirm task in ONE line at the end
-
-INVOICE FORMAT:
-When creating an invoice respond with ONLY this structure:
-
-INVOICE #[NUMBER]
-Bill To: [client name]
-
-[Item description] | [qty] | $[rate] | $[amount]
-
-Subtotal: $[amount]
-Tax (10%): $[amount]
-Total Due: $[amount]
-
-Then add: [SEND_INVOICE:email:invoiceNumber:clientName:subtotal:tax:total:desc|qty|rate|amount]
-
-EMAIL FORMAT:
-Keep emails SHORT - max 5 lines.
-Then add: [SEND_EMAIL:email:subject]
-
-CONTRACT FORMAT:
-Keep to ONE page max. Essential clauses only.
-Then add: [CREATE_DOCUMENT:CONTRACT:title|party1|party2|date]
-
-GENERAL:
-- Professional = short and clear
-- Always confirm in one line what you did`
-
-    const conversationHistory = history.slice(-10).map((msg: { role: string; content: string }) => ({
-      role: msg.role,
-      content: msg.content,
-    }))
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: [...conversationHistory, { role: 'user', content: message }],
-      }),
-    })
-
-    const data = await response.json()
-    let reply = data.content[0].text
-    let emailSent = false
-    let documentId = null
-    let documentType = null
-    let invoiceHTML = null
-
-    // Handle invoice
-    const invoiceMatch = reply.match(/\[SEND_INVOICE:([^\]]+)\]/)
-    if (invoiceMatch) {
-      const parts = invoiceMatch[1].split(':')
-      const recipientEmail = parts[0]?.trim()
-      const invoiceNumber = parts[1]?.trim()
-      const clientName = parts[2]?.trim()
-      const subtotal = parts[3]?.trim()
-      const tax = parts[4]?.trim()
-      const total = parts[5]?.trim()
-      const itemParts = (parts[6] || '').split('|')
-      const itemDesc = itemParts[0]?.trim() || 'Service'
-      const itemQty = itemParts[1]?.trim() || '1'
-      const itemRate = itemParts[2]?.trim() || subtotal
-      const itemAmount = itemParts[3]?.trim() || subtotal
-
-      reply = reply.replace(/\[SEND_INVOICE:[^\]]+\]/g, '').trim()
-
-      const lineItemsHTML = `
-        <tr>
-          <td style="padding:14px 16px;font-size:14px;color:#374151;border-bottom:1px solid #f3f4f6;">${itemDesc}</td>
-          <td align="center" style="padding:14px 16px;font-size:14px;color:#6b7280;border-bottom:1px solid #f3f4f6;">${itemQty}</td>
-          <td align="right" style="padding:14px 16px;font-size:14px;color:#6b7280;border-bottom:1px solid #f3f4f6;">$${itemRate}</td>
-          <td align="right" style="padding:14px 16px;font-size:14px;font-weight:700;color:#0a0a0a;border-bottom:1px solid #f3f4f6;">$${itemAmount}</td>
-        </tr>`
-
-      invoiceHTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:48px 24px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
-
-  <tr>
-    <td style="background:#0a0a0a;padding:40px 48px;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td valign="top">
-            <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">FROM</div>
-            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${agent.business_name}</div>
-          </td>
-          <td align="right" valign="top">
-            <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">INVOICE</div>
-            <div style="color:#ffffff;font-size:30px;font-weight:800;letter-spacing:-1px;">${invoiceNumber}</div>
-            <div style="margin-top:10px;">
-              <span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:20px;font-family:monospace;">TAX INVOICE</span>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  <tr>
-    <td style="background:#111111;padding:18px 48px;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td>
-            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">ISSUE DATE</div>
-            <div style="color:#ffffff;font-size:13px;font-weight:500;">${formatDate(today)}</div>
-          </td>
-          <td>
-            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">DUE DATE</div>
-            <div style="color:#c8f135;font-size:13px;font-weight:600;">${formatDate(dueDate)}</div>
-          </td>
-          <td>
-            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">STATUS</div>
-            <div style="color:#fbbf24;font-size:13px;font-weight:600;">Unpaid</div>
-          </td>
-          <td align="right">
-            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">TERMS</div>
-            <div style="color:#ffffff;font-size:13px;font-weight:500;">Net 30</div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  <tr>
-    <td style="padding:40px 48px;background:#ffffff;">
-
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
-        <tr>
-          <td style="background:#f9fafb;border-left:4px solid #0a0a0a;padding:18px 24px;border-radius:0 8px 8px 0;">
-            <div style="color:#9ca3af;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">BILLED TO</div>
-            <div style="color:#0a0a0a;font-size:17px;font-weight:700;margin-bottom:4px;">${clientName}</div>
-            ${recipientEmail ? `<div style="color:#6b7280;font-size:13px;">${recipientEmail}</div>` : ''}
-          </td>
-        </tr>
-      </table>
-
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border-radius:8px;overflow:hidden;">
-        <tr style="background:#0a0a0a;">
-          <td style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;">DESCRIPTION</td>
-          <td align="center" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:60px;">QTY</td>
-          <td align="right" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:100px;">RATE</td>
-          <td align="right" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:100px;">AMOUNT</td>
-        </tr>
-        ${lineItemsHTML}
-      </table>
-
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
-        <tr>
-          <td width="55%"></td>
-          <td width="45%">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border-radius:10px;padding:20px 24px;">
-              <tr>
-                <td style="padding:5px 0;font-size:13px;color:#6b7280;">Subtotal</td>
-                <td align="right" style="padding:5px 0;font-size:13px;color:#374151;">$${subtotal}</td>
-              </tr>
-              <tr>
-                <td style="padding:5px 0 12px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">GST / Tax (10%)</td>
-                <td align="right" style="padding:5px 0 12px;font-size:13px;color:#374151;border-bottom:1px solid #e5e7eb;">$${tax}</td>
-              </tr>
-              <tr>
-                <td style="padding-top:12px;font-size:17px;font-weight:800;color:#0a0a0a;">Total Due</td>
-                <td align="right" style="padding-top:12px;font-size:17px;font-weight:800;color:#0a0a0a;">$${total}</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td style="background:#0a0a0a;border-radius:10px;padding:20px 24px;">
-            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">PAYMENT INSTRUCTIONS</div>
-            <div style="color:#ffffff;font-size:13px;line-height:1.6;">Please remit payment by ${formatDate(dueDate)}. Contact ${agent.business_name} for payment enquiries.</div>
-          </td>
-        </tr>
-      </table>
-
-    </td>
-  </tr>
-
-  <tr>
-    <td style="background:#f9fafb;padding:24px 48px;border-top:2px solid #0a0a0a;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td>
-            <div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${agent.business_name}</div>
-            <div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${agent.agent_name}</div>
-          </td>
-          <td align="right">
-            <div style="font-size:10px;color:#9ca3af;font-family:monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">AMOUNT DUE</div>
-            <div style="font-size:26px;font-weight:800;color:#0a0a0a;">$${total}</div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`
-
-      // Save document to Supabase
-      try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        const { data: doc } = await supabase
-          .from('documents')
-          .insert({
-            agent_id: agent.id,
-            type: 'INVOICE',
-            content: invoiceHTML,
-            metadata: { invoiceNumber, clientName, subtotal, tax, total, recipientEmail },
-          })
-          .select()
-          .single()
-
-        if (doc) {
-          documentId = doc.id
-          documentType = 'INVOICE'
-        }
-      } catch { }
-
-      // Send invoice email
-      try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        const { error } = await resend.emails.send({
-          from: 'AgentBoard <onboarding@resend.dev>',
-          to: recipientEmail,
-          subject: `Invoice ${invoiceNumber} from ${agent.business_name}`,
-          html: invoiceHTML,
-        })
-        if (!error) {
-          emailSent = true
-          reply += `\n\nInvoice ${invoiceNumber} sent to ${recipientEmail}.`
-        }
-      } catch { }
-    }
-
-    // Handle regular email
-    const emailMatch = reply.match(/\[SEND_EMAIL:([^\]:]+):([^\]]+)\]/)
-    if (emailMatch && !invoiceMatch) {
-      const recipientEmail = emailMatch[1].trim()
-      const emailSubject = emailMatch[2].trim()
-      reply = reply.replace(/\[SEND_EMAIL:[^\]]+\]/g, '').trim()
-
-      const emailHTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:48px 24px;">
-<tr><td align="center">
-<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
-  <tr>
-    <td style="background:#0a0a0a;padding:28px 40px;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div></td>
-          <td align="right">
-            <span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">Message</span>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-  <tr>
-    <td style="padding:36px 40px;font-size:14px;line-height:1.8;color:#374151;">
-      ${reply.replace(/\n/g, '<br>')}
-    </td>
-  </tr>
-  <tr>
-    <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${agent.agent_name}</td>
-          <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">${agent.business_name}</td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`
-
-      try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        const { error } = await resend.emails.send({
-          from: 'AgentBoard <onboarding@resend.dev>',
-          to: recipientEmail,
-          subject: emailSubject,
-          html: emailHTML,
-        })
-        if (!error) {
-          emailSent = true
-          reply += `\n\nEmail sent to ${recipientEmail}.`
-        }
-      } catch { }
-    }
-
-    // Handle document creation
-    const docMatch = reply.match(/\[CREATE_DOCUMENT:([^:]+):([^\]]+)\]/)
-    if (docMatch && !invoiceMatch) {
-      documentType = docMatch[1]
-      const params = docMatch[2].split('|')
-      reply = reply.replace(/\[CREATE_DOCUMENT:[^\]]+\]/g, '').trim()
-
-      const metadata: Record<string, unknown> = {
-        title: params[0],
-        party1: params[1],
-        party2: params[2],
-        date: params[3] || formatDate(today),
-      }
-
-      try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        const { data: doc } = await supabase
-          .from('documents')
-          .insert({ agent_id: agent.id, type: documentType, content: reply, metadata })
-          .select()
-          .single()
-
-        if (doc) {
-          documentId = doc.id
-          reply += `\n\n📄 ${documentType} ready — click to view and print.`
-        }
-      } catch { }
-    }
-
-    return NextResponse.json({ reply, emailSent, documentId, documentType, invoiceHTML })
-
-  } catch (err) {
-    console.error('Agent chat error:', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+  const loadRecentRuns = async () => {
+    const { data } = await supabase
+      .from('automation_runs')
+      .select('*')
+      .eq('business_agent_id', agent.id as string)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    setRecentRuns(data || [])
   }
+
+  const startAction = (action: typeof QUICK_ACTIONS[0]) => {
+    setView('chat')
+    if (action.prompt) {
+      setInput(action.prompt)
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.setSelectionRange(action.prompt.length, action.prompt.length)
+      }, 100)
+    } else {
+      setInput('')
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+    if (messages.length === 0) {
+      setMessages([{
+        role: 'assistant',
+        content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`,
+        timestamp: new Date().toISOString(),
+      }])
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!input.trim() || running) return
+    const userMessage: Message = { role: 'user', content: input, timestamp: new Date().toISOString() }
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    setRunning(true)
+
+    try {
+      const response = await fetch('/api/agent-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input, agent, history: messages }),
+      })
+      const data = await response.json()
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.reply,
+        timestamp: new Date().toISOString(),
+        emailSent: data.emailSent,
+        documentId: data.documentId,
+        documentType: data.documentType,
+        invoiceHTML: data.invoiceHTML,
+      }
+      setMessages(prev => [...prev, assistantMessage])
+      await supabase.from('automation_runs').insert({
+        business_agent_id: agent.id as string,
+        automation_type: 'chat',
+        input,
+        output: data.reply,
+      })
+      loadRecentRuns()
+    } catch {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Something went wrong. Please try again.',
+        timestamp: new Date().toISOString(),
+      }])
+    }
+    setRunning(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+  }
+
+  const timeAgo = (date: string) => {
+    const s = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000)
+    if (s < 60) return 'just now'
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+    return `${Math.floor(s / 86400)}d ago`
+  }
+
+  const viewDocument = async (documentId: string, documentType: string, inlineHTML?: string) => {
+    if (inlineHTML) {
+      setPreviewDoc({ html: inlineHTML, type: documentType })
+      return
+    }
+    const { data } = await supabase.from('documents').select('*').eq('id', documentId).single()
+    if (data) {
+      const html = (data.metadata as Record<string, unknown>)?.invoiceHTML as string || data.content as string
+      setPreviewDoc({ html, type: documentType })
+    }
+  }
+
+  return (
+    <>
+      <Navbar />
+
+      {/* Document preview modal */}
+      {previewDoc && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+        }}>
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)',
+            borderRadius: 16, width: '100%', maxWidth: 740,
+            maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '16px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0
+            }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>
+                {previewDoc.type} PREVIEW
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    const win = window.open('', '_blank')
+                    if (win) { win.document.write(previewDoc.html); win.document.close(); win.print() }
+                  }}
+                  className="btn btn-accent" style={{ fontSize: 12, padding: '7px 16px' }}>
+                  🖨 Print / Save PDF
+                </button>
+                <button onClick={() => setPreviewDoc(null)} className="btn btn-outline" style={{ fontSize: 12, padding: '7px 16px' }}>
+                  Close ✕
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <iframe
+                srcDoc={previewDoc.html}
+                style={{ width: '100%', height: '600px', border: 'none' }}
+                title="Document Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: 'var(--fg)', color: 'var(--bg)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--serif)', fontSize: 22,
+            }}>
+              {(agent.agent_name as string)?.[0]}
+            </div>
+            <div>
+              <h1 style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 400, marginBottom: 2 }}>{agent.agent_name as string}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80' }} />
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)' }}>active · {agent.business_name as string}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setView(view === 'home' ? 'chat' : 'home')} className="btn btn-outline" style={{ fontSize: 12 }}>
+              {view === 'home' ? '💬 Open chat' : '⊞ Dashboard'}
+            </button>
+            <button onClick={() => router.push('/dashboard')} className="btn btn-outline" style={{ fontSize: 12 }}>← Back</button>
+          </div>
+        </div>
+
+        {/* HOME VIEW */}
+        {view === 'home' && (
+          <div>
+            <div style={{
+              background: 'var(--fg)', color: 'var(--bg)',
+              borderRadius: 16, padding: '28px 32px', marginBottom: 28,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+            }}>
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.5, marginBottom: 8, letterSpacing: 1 }}>YOUR AI BUSINESS ASSISTANT</div>
+                <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, marginBottom: 6 }}>What do you need done today?</h2>
+                <p style={{ fontSize: 14, opacity: 0.6, maxWidth: 400 }}>Pick an action below or chat directly. No technical knowledge needed.</p>
+              </div>
+              <button onClick={() => startAction(QUICK_ACTIONS[11])} className="btn btn-accent" style={{ fontSize: 13, padding: '12px 24px' }}>
+                Start chatting →
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 }}>Quick actions</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                {QUICK_ACTIONS.map((action, i) => (
+                  <button key={i} onClick={() => startAction(action)}
+                    style={{
+                      textAlign: 'left', padding: '16px 18px',
+                      background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--fg)'; (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)' }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>{action.icon}</div>
+                    <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{action.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {recentRuns.length > 0 && (
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 }}>Recent activity</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {recentRuns.map((run, i) => (
+                    <div key={i}
+                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                      onClick={() => {
+                        setView('chat')
+                        setMessages([
+                          { role: 'user', content: run.input as string, timestamp: run.created_at as string },
+                          { role: 'assistant', content: run.output as string, timestamp: run.created_at as string },
+                        ])
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{(run.input as string)?.slice(0, 60)}{(run.input as string)?.length > 60 ? '...' : ''}</div>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)' }}>{run.automation_type as string}</div>
+                      </div>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', flexShrink: 0, marginLeft: 16 }}>{timeAgo(run.created_at as string)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CHAT VIEW */}
+        {view === 'chat' && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)' }}>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {QUICK_ACTIONS.slice(0, 6).map((action, i) => (
+                <button key={i} onClick={() => startAction(action)}
+                  style={{ fontFamily: 'var(--mono)', fontSize: 11, padding: '6px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, cursor: 'pointer', color: 'var(--muted)', transition: 'all 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)'}
+                >
+                  {action.icon} {action.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 16 }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '80%',
+                    background: msg.role === 'user' ? 'var(--fg)' : 'var(--bg2)',
+                    color: msg.role === 'user' ? 'var(--bg)' : 'var(--fg)',
+                    border: `1px solid ${msg.role === 'user' ? 'var(--fg)' : 'var(--border)'}`,
+                    borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    padding: '14px 18px',
+                  }}>
+                    {msg.role === 'assistant' && (
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--accent)', marginBottom: 8, letterSpacing: 1 }}>
+                        {agent.agent_name as string}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+
+                    {msg.emailSent && (
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#4ade80', marginTop: 10, padding: '4px 10px', background: '#0d2e14', borderRadius: 6, display: 'inline-block', border: '1px solid #1a4a24' }}>
+                        ✓ email sent
+                      </div>
+                    )}
+
+                    {msg.documentId && (
+                      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => viewDocument(msg.documentId!, msg.documentType!, msg.invoiceHTML)}
+                          style={{
+                            fontFamily: 'var(--mono)', fontSize: 11, padding: '7px 14px',
+                            background: 'var(--fg)', color: 'var(--bg)',
+                            border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600,
+                          }}>
+                          👁 View {msg.documentType}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const win = window.open('', '_blank')
+                            if (win && msg.invoiceHTML) { win.document.write(msg.invoiceHTML); win.document.close(); win.print() }
+                          }}
+                          style={{
+                            fontFamily: 'var(--mono)', fontSize: 11, padding: '7px 14px',
+                            background: '#c8f135', color: '#0a0a0a',
+                            border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600,
+                          }}>
+                          🖨 Print / PDF
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 8, opacity: 0.5 }}>
+                      {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {running && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px 16px 16px 4px', padding: '14px 18px' }}>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--accent)', marginBottom: 8, letterSpacing: 1 }}>{agent.agent_name as string}</div>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)', animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={`Tell ${agent.agent_name as string} what to do...`}
+                rows={2}
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--fg)', resize: 'none', lineHeight: 1.6 }}
+              />
+              <button onClick={sendMessage} disabled={running || !input.trim()} className="btn btn-accent"
+                style={{ fontSize: 12, padding: '8px 18px', flexShrink: 0, opacity: (running || !input.trim()) ? 0.5 : 1 }}>
+                Send →
+              </button>
+            </div>
+            <p style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
+              Press Enter to send · Shift+Enter for new line
+            </p>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
+          30% { opacity: 1; transform: scale(1.2); }
+        }
+      `}</style>
+    </>
+  )
 }
