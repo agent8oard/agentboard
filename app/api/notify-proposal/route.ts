@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { error: emailError } = await resend.emails.send({
       from: 'AgentBoard <onboarding@resend.dev>',
-      to: "mavindurai70@gmail.com",
+      to: "ownerEmail",
       subject: `New proposal on your task: ${task.title}`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #080808; color: #f0ede8; border-radius: 16px;">
