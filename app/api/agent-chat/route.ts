@@ -20,20 +20,17 @@ You are concise, professional, and action-oriented. You complete tasks immediate
 TODAY: ${formatDate(today)}
 DUE DATE (invoices): ${formatDate(dueDate)}
 
-━━━ RULES ━━━
+RULES:
 - Be brief. Never repeat yourself.
 - Never use ** for bold. Use plain text only.
 - Keep all documents SHORT and professional
 - Confirm task in ONE line at the end
 
-━━━ INVOICE FORMAT ━━━
-When creating an invoice, respond with ONLY this exact structure:
+INVOICE FORMAT:
+When creating an invoice respond with ONLY this structure:
 
 INVOICE #[NUMBER]
-[Business Name]
-Date: [date] · Due: [due date]
-
-Bill To: [client name and email if provided]
+Bill To: [client name]
 
 [Item description] | [qty] | $[rate] | $[amount]
 
@@ -41,22 +38,18 @@ Subtotal: $[amount]
 Tax (10%): $[amount]
 Total Due: $[amount]
 
-Then add: [SEND_INVOICE:email:invoiceNumber:clientName:subtotal:tax:total:item1desc|item1qty|item1rate|item1amount]
+Then add: [SEND_INVOICE:email:invoiceNumber:clientName:subtotal:tax:total:desc|qty|rate|amount]
 
-━━━ EMAIL FORMAT ━━━
-Keep emails SHORT — max 5 lines of body text.
-Subject line: clear and direct.
-No lengthy explanations.
+EMAIL FORMAT:
+Keep emails SHORT - max 5 lines.
 Then add: [SEND_EMAIL:email:subject]
 
-━━━ CONTRACT FORMAT ━━━
-Keep contracts to ONE page max.
-Only essential clauses.
+CONTRACT FORMAT:
+Keep to ONE page max. Essential clauses only.
 Then add: [CREATE_DOCUMENT:CONTRACT:title|party1|party2|date]
 
-━━━ GENERAL ━━━
-- For ANY document: keep it to one page
-- Professional = short and clear, not long and wordy
+GENERAL:
+- Professional = short and clear
 - Always confirm in one line what you did`
 
     const conversationHistory = history.slice(-10).map((msg: { role: string; content: string }) => ({
@@ -85,7 +78,7 @@ Then add: [CREATE_DOCUMENT:CONTRACT:title|party1|party2|date]
     let documentId = null
     let documentType = null
 
-    // Handle invoice sending
+    // Handle invoice
     const invoiceMatch = reply.match(/\[SEND_INVOICE:([^\]]+)\]/)
     if (invoiceMatch) {
       const parts = invoiceMatch[1].split(':')
@@ -95,118 +88,160 @@ Then add: [CREATE_DOCUMENT:CONTRACT:title|party1|party2|date]
       const subtotal = parts[3]?.trim()
       const tax = parts[4]?.trim()
       const total = parts[5]?.trim()
-      const itemParts = parts[6]?.split('|') || []
-      const itemDesc = itemParts[0] || 'Service'
-      const itemQty = itemParts[1] || '1'
-      const itemRate = itemParts[2] || subtotal
-      const itemAmount = itemParts[3] || subtotal
+      const itemParts = (parts[6] || '').split('|')
+      const itemDesc = itemParts[0]?.trim() || 'Service'
+      const itemQty = itemParts[1]?.trim() || '1'
+      const itemRate = itemParts[2]?.trim() || subtotal
+      const itemAmount = itemParts[3]?.trim() || subtotal
 
       reply = reply.replace(/\[SEND_INVOICE:[^\]]+\]/g, '').trim()
 
-      const lineItemsHTML = `<tr>
-        <td style="padding:14px 16px;font-size:14px;color:#333;border-bottom:1px solid #f0f0f0;">${itemDesc}</td>
-        <td style="padding:14px 16px;font-size:14px;color:#666;text-align:right;border-bottom:1px solid #f0f0f0;">${itemQty}</td>
-        <td style="padding:14px 16px;font-size:14px;color:#666;text-align:right;border-bottom:1px solid #f0f0f0;">$${itemRate}</td>
-        <td style="padding:14px 16px;font-size:14px;font-weight:600;color:#0a0a0a;text-align:right;border-bottom:1px solid #f0f0f0;">$${itemAmount}</td>
-      </tr>`
+      const lineItemsHTML = `
+        <tr>
+          <td style="padding:14px 16px;font-size:14px;color:#374151;border-bottom:1px solid #f3f4f6;">${itemDesc}</td>
+          <td align="center" style="padding:14px 16px;font-size:14px;color:#6b7280;border-bottom:1px solid #f3f4f6;">${itemQty}</td>
+          <td align="right" style="padding:14px 16px;font-size:14px;color:#6b7280;border-bottom:1px solid #f3f4f6;">$${itemRate}</td>
+          <td align="right" style="padding:14px 16px;font-size:14px;font-weight:700;color:#0a0a0a;border-bottom:1px solid #f3f4f6;">$${itemAmount}</td>
+        </tr>`
 
       const invoiceHTML = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a1a; padding:40px 20px; }
-  .page { max-width:680px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4); }
-  .header { background:#0a0a0a; padding:40px 48px; }
-  .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
-  .business-name { color:#ffffff; font-size:24px; font-weight:700; letter-spacing:-0.5px; }
-  .invoice-badge { background:#c8f135; color:#0a0a0a; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; padding:6px 14px; border-radius:20px; font-family:monospace; display:inline-block; }
-  .invoice-number { color:#ffffff; font-size:36px; font-weight:800; letter-spacing:-1px; }
-  .invoice-number-label { color:#666; font-size:11px; letter-spacing:2px; text-transform:uppercase; font-family:monospace; margin-bottom:4px; }
-  .meta-strip { background:#111; padding:20px 48px; display:flex; justify-content:space-between; border-top:1px solid #222; }
-  .meta-item label { color:#555; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; font-family:monospace; display:block; margin-bottom:4px; }
-  .meta-item span { color:#fff; font-size:13px; font-weight:500; }
-  .body { padding:40px 48px; background:#fff; }
-  .bill-to { margin-bottom:32px; padding:20px 24px; background:#f8f8f8; border-radius:10px; border-left:3px solid #0a0a0a; }
-  .bill-to label { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; font-family:monospace; color:#999; display:block; margin-bottom:8px; }
-  .bill-to .name { font-size:16px; font-weight:700; color:#0a0a0a; margin-bottom:2px; }
-  .bill-to .email { font-size:13px; color:#666; }
-  table { width:100%; border-collapse:collapse; margin-bottom:24px; }
-  thead tr { background:#0a0a0a; }
-  th { color:#fff; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; font-family:monospace; font-weight:500; padding:12px 16px; text-align:left; }
-  th.r { text-align:right; }
-  .totals-section { display:flex; justify-content:flex-end; margin-bottom:32px; }
-  .totals-box { width:260px; background:#f8f8f8; border-radius:10px; padding:20px 24px; }
-  .total-line { display:flex; justify-content:space-between; padding:6px 0; font-size:13px; color:#666; border-bottom:1px solid #eee; }
-  .total-final { display:flex; justify-content:space-between; padding:12px 0 0; margin-top:4px; font-size:18px; font-weight:800; color:#0a0a0a; }
-  .payment-info { background:#0a0a0a; border-radius:10px; padding:20px 24px; margin-bottom:32px; }
-  .payment-info label { color:#666; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; font-family:monospace; display:block; margin-bottom:8px; }
-  .payment-info p { color:#fff; font-size:13px; line-height:1.6; }
-  .footer { padding:24px 48px; background:#f8f8f8; border-top:2px solid #0a0a0a; display:flex; justify-content:space-between; align-items:center; }
-  .footer-left p { font-size:13px; color:#0a0a0a; font-weight:600; margin-bottom:2px; }
-  .footer-left span { font-size:11px; color:#999; font-family:monospace; }
-  .footer-right .amount { font-size:24px; font-weight:800; color:#0a0a0a; }
-  .footer-right .amount-label { font-size:10px; color:#999; font-family:monospace; letter-spacing:1px; text-transform:uppercase; text-align:right; }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <div class="header-top">
-      <div><div class="business-name">${agent.business_name}</div></div>
-      <div style="text-align:right;">
-        <div class="invoice-number-label">Invoice</div>
-        <div class="invoice-number">${invoiceNumber}</div>
-      </div>
-    </div>
-    <span class="invoice-badge">Tax Invoice</span>
-  </div>
-  <div class="meta-strip">
-    <div class="meta-item"><label>Issue Date</label><span>${formatDate(today)}</span></div>
-    <div class="meta-item"><label>Due Date</label><span style="color:#c8f135;">${formatDate(dueDate)}</span></div>
-    <div class="meta-item"><label>Status</label><span style="color:#fbbf24;">Unpaid</span></div>
-    <div class="meta-item"><label>Terms</label><span>Net 30</span></div>
-  </div>
-  <div class="body">
-    <div class="bill-to">
-      <label>Billed To</label>
-      <div class="name">${clientName}</div>
-      ${recipientEmail ? `<div class="email">${recipientEmail}</div>` : ''}
-    </div>
-    <table>
-      <thead>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:48px 24px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#0a0a0a;padding:40px 48px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <th style="width:50%;">Description</th>
-          <th class="r">Qty</th>
-          <th class="r">Rate</th>
-          <th class="r">Amount</th>
+          <td valign="top">
+            <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">FROM</div>
+            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${agent.business_name}</div>
+          </td>
+          <td align="right" valign="top">
+            <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">INVOICE</div>
+            <div style="color:#ffffff;font-size:30px;font-weight:800;letter-spacing:-1px;">${invoiceNumber}</div>
+            <div style="margin-top:10px;">
+              <span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:20px;font-family:monospace;">TAX INVOICE</span>
+            </div>
+          </td>
         </tr>
-      </thead>
-      <tbody>${lineItemsHTML}</tbody>
-    </table>
-    <div class="totals-section">
-      <div class="totals-box">
-        <div class="total-line"><span>Subtotal</span><span>$${subtotal}</span></div>
-        <div class="total-line"><span>GST / Tax (10%)</span><span>$${tax}</span></div>
-        <div class="total-final"><span>Total Due</span><span>$${total}</span></div>
-      </div>
-    </div>
-    <div class="payment-info">
-      <label>Payment Instructions</label>
-      <p>Please remit payment by ${formatDate(dueDate)}. For payment enquiries contact ${agent.business_name} directly.</p>
-    </div>
-  </div>
-  <div class="footer">
-    <div class="footer-left">
-      <p>${agent.business_name}</p>
-      <span>Generated by ${agent.agent_name}</span>
-    </div>
-    <div class="footer-right">
-      <div class="amount-label">Amount Due</div>
-      <div class="amount">$${total}</div>
-    </div>
-  </div>
-</div>
+      </table>
+    </td>
+  </tr>
+
+  <!-- DATE BAR -->
+  <tr>
+    <td style="background:#111111;padding:18px 48px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">ISSUE DATE</div>
+            <div style="color:#ffffff;font-size:13px;font-weight:500;">${formatDate(today)}</div>
+          </td>
+          <td>
+            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">DUE DATE</div>
+            <div style="color:#c8f135;font-size:13px;font-weight:600;">${formatDate(dueDate)}</div>
+          </td>
+          <td>
+            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">STATUS</div>
+            <div style="color:#fbbf24;font-size:13px;font-weight:600;">Unpaid</div>
+          </td>
+          <td align="right">
+            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">TERMS</div>
+            <div style="color:#ffffff;font-size:13px;font-weight:500;">Net 30</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="padding:40px 48px;background:#ffffff;">
+
+      <!-- BILL TO -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
+        <tr>
+          <td style="background:#f9fafb;border-left:4px solid #0a0a0a;padding:18px 24px;border-radius:0 8px 8px 0;">
+            <div style="color:#9ca3af;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">BILLED TO</div>
+            <div style="color:#0a0a0a;font-size:17px;font-weight:700;margin-bottom:4px;">${clientName}</div>
+            ${recipientEmail ? `<div style="color:#6b7280;font-size:13px;">${recipientEmail}</div>` : ''}
+          </td>
+        </tr>
+      </table>
+
+      <!-- LINE ITEMS -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#0a0a0a;">
+          <td style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;">DESCRIPTION</td>
+          <td align="center" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:60px;">QTY</td>
+          <td align="right" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:100px;">RATE</td>
+          <td align="right" style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;width:100px;">AMOUNT</td>
+        </tr>
+        ${lineItemsHTML}
+      </table>
+
+      <!-- TOTALS -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
+        <tr>
+          <td width="60%"></td>
+          <td width="40%">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border-radius:10px;padding:20px 24px;">
+              <tr>
+                <td style="padding:5px 0;font-size:13px;color:#6b7280;">Subtotal</td>
+                <td align="right" style="padding:5px 0;font-size:13px;color:#374151;">$${subtotal}</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 0;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:12px;">GST / Tax (10%)</td>
+                <td align="right" style="padding:5px 0;font-size:13px;color:#374151;border-bottom:1px solid #e5e7eb;padding-bottom:12px;">$${tax}</td>
+              </tr>
+              <tr>
+                <td style="padding-top:12px;font-size:17px;font-weight:800;color:#0a0a0a;">Total Due</td>
+                <td align="right" style="padding-top:12px;font-size:17px;font-weight:800;color:#0a0a0a;">$${total}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- PAYMENT INFO -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+        <tr>
+          <td style="background:#0a0a0a;border-radius:10px;padding:20px 24px;">
+            <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">PAYMENT INSTRUCTIONS</div>
+            <div style="color:#ffffff;font-size:13px;line-height:1.6;">Please remit payment by ${formatDate(dueDate)}. Contact ${agent.business_name} for payment enquiries.</div>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#f9fafb;padding:24px 48px;border-top:2px solid #0a0a0a;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${agent.business_name}</div>
+            <div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${agent.agent_name}</div>
+          </td>
+          <td align="right">
+            <div style="font-size:10px;color:#9ca3af;font-family:monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">AMOUNT DUE</div>
+            <div style="font-size:26px;font-weight:800;color:#0a0a0a;">$${total}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
 </body>
 </html>`
 
@@ -234,31 +269,43 @@ Then add: [CREATE_DOCUMENT:CONTRACT:title|party1|party2|date]
 
       const emailHTML = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a1a; padding:40px 20px; }
-  .page { max-width:600px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4); }
-  .header { background:#0a0a0a; padding:28px 40px; display:flex; justify-content:space-between; align-items:center; }
-  .biz { color:#fff; font-size:17px; font-weight:700; }
-  .badge { background:#c8f135; color:#0a0a0a; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:5px 12px; border-radius:20px; font-family:monospace; }
-  .body { padding:36px 40px; font-size:14px; line-height:1.8; color:#333; white-space:pre-wrap; }
-  .footer { background:#f8f8f8; padding:20px 40px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
-  .footer p { font-size:11px; font-family:monospace; color:#aaa; }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <div class="biz">${agent.business_name}</div>
-    <div class="badge">Message</div>
-  </div>
-  <div class="body">${reply.replace(/\n/g, '<br>')}</div>
-  <div class="footer">
-    <p>Sent by ${agent.agent_name}</p>
-    <p>${agent.business_name}</p>
-  </div>
-</div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:48px 24px;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+  <tr>
+    <td style="background:#0a0a0a;padding:28px 40px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div>
+          </td>
+          <td align="right">
+            <span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">Message</span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:36px 40px;font-size:14px;line-height:1.8;color:#374151;">
+      ${reply.replace(/\n/g, '<br>')}
+    </td>
+  </tr>
+  <tr>
+    <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${agent.agent_name}</td>
+          <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">${agent.business_name}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</td></tr>
+</table>
 </body>
 </html>`
 
