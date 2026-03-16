@@ -1,29 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0a0a0a;
-  --bg2:       #111111;
-  --bg3:       #161616;
-  --bg4:       #1c1c1c;
-  --border:    #222222;
-  --border2:   #2a2a2a;
-  --border3:   #333333;
-  --fg:        #ededed;
-  --fg2:       #a1a1a1;
-  --fg3:       #666666;
-  --accent:    #c8f135;
-  --accent2:   #a8d020;
-  --blue:      #3b82f6;
-  --green:     #22c55e;
-  --red:       #ef4444;
-  --yellow:    #f59e0b;
-  --purple:    #8b5cf6;
-  --muted:     #666666;
-  --sans:      'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono:      'DM Mono', 'Fira Code', monospace;
-  --serif:     'Instrument Serif', Georgia, serif;
+  --bg:           #0a0a0a;
+  --bg2:          #111111;
+  --bg3:          #161616;
+  --bg4:          #1c1c1c;
+  --border:       #222222;
+  --border2:      #2a2a2a;
+  --border3:      #333333;
+  --fg:           #ededed;
+  --fg2:          #a1a1a1;
+  --fg3:          #666666;
+  --accent:       #c8f135;
+  --accent2:      #a8d020;
+  --blue:         #3b82f6;
+  --green:        #22c55e;
+  --red:          #ef4444;
+  --yellow:       #f59e0b;
+  --purple:       #8b5cf6;
+  --muted:        #666666;
+  --sans:         'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono:         'DM Mono', 'Fira Code', monospace;
+  --serif:        'Instrument Serif', Georgia, serif;
+  --sidebar-font: 'Outfit', 'Inter', sans-serif;
   --sidebar-width: 260px;
   --header-height: 48px;
 }
@@ -119,18 +120,18 @@ body {
   align-items: center;
   justify-content: center;
   color: #0a0a0a;
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .sidebar-logo-text {
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 700;
+  font-family: var(--sidebar-font);
+  font-size: 16px;
+  font-weight: 600;
   color: var(--fg);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .sidebar-section {
@@ -139,11 +140,11 @@ body {
 }
 
 .sidebar-section-label {
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 10px;
   font-weight: 600;
   color: var(--fg3);
-  letter-spacing: 0.8px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   padding: 8px 10px 4px;
   margin-top: 4px;
@@ -156,7 +157,7 @@ body {
   padding: 9px 10px;
   border-radius: 6px;
   font-size: 14px;
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-weight: 500;
   color: var(--fg2);
   text-decoration: none;
@@ -167,7 +168,7 @@ body {
   width: 100%;
   text-align: left;
   line-height: 1.3;
-  letter-spacing: -0.1px;
+  letter-spacing: 0.1px;
 }
 
 .sidebar-item:hover { background: var(--bg3); color: var(--fg); }
@@ -177,7 +178,7 @@ body {
 
 .sidebar-badge {
   margin-left: auto;
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
@@ -214,7 +215,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 14px;
   font-weight: 600;
   color: var(--fg2);
@@ -396,7 +397,7 @@ body {
   height: 20px;
   padding: 0 8px;
   border-radius: 10px;
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 10px;
   font-weight: 500;
 }
@@ -594,8 +595,8 @@ body {
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  font-family: var(--sans);
-  font-size: 15px;
+  font-family: var(--sidebar-font);
+  font-size: 16px;
   font-weight: 700;
   color: var(--fg);
   letter-spacing: -0.3px;
@@ -615,8 +616,8 @@ body {
 }
 
 .nav-link {
-  font-family: var(--sans);
-  font-size: 13px;
+  font-family: var(--sidebar-font);
+  font-size: 14px;
   font-weight: 500;
   color: var(--fg3);
   text-decoration: none;
@@ -636,7 +637,7 @@ body {
 }
 
 .section-label {
-  font-family: var(--sans);
+  font-family: var(--sidebar-font);
   font-size: 10px;
   font-weight: 600;
   color: var(--fg3);
