@@ -39,7 +39,7 @@ const QUICK_ACTIONS = [
   { label: 'Business proposal', prompt: 'Write a business proposal for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
   { label: 'Meeting agenda', prompt: 'Create a meeting agenda for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
   { label: 'Welcome message', prompt: 'Write a welcome message for new customers: ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> },
-  { label: 'Custom task', prompt: '', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg> },
+  { label: 'Create order', prompt: 'Create an order record for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg> },
 ]
 
 const EVENT_COLORS: Record<string, string> = {
@@ -244,7 +244,11 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                 key={tab.key}
                 onClick={() => {
                   if (tab.key === 'chat' && messages.length === 0) {
-                    setMessages([{ role: 'assistant', content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`, timestamp: new Date().toISOString() }])
+                    setMessages([{
+                      role: 'assistant',
+                      content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`,
+                      timestamp: new Date().toISOString(),
+                    }])
                   }
                   setView(tab.key as 'home' | 'chat' | 'calendar')
                 }}
@@ -258,6 +262,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               { label: 'Manage', path: 'manage' },
               { label: 'Analytics', path: 'analytics' },
               { label: 'Automations', path: 'automations' },
+              { label: 'Orders', path: 'orders' },
             ].map(btn => (
               <button
                 key={btn.path}
@@ -294,11 +299,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                     {(agent.agent_name as string)?.[0]}
                   </div>
                   <div>
-                    <div style={{
-                      fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px',
-                      marginBottom: 6, color: 'var(--fg)',
-                      fontFamily: 'var(--sidebar-font)',
-                    }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', marginBottom: 6, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>
                       {agent.agent_name as string}
                     </div>
                     <div style={{ fontSize: 15, color: 'var(--fg3)', fontFamily: 'var(--sidebar-font)' }}>
@@ -325,17 +326,8 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                   { label: 'Industry', value: agent.industry as string || '—', color: 'var(--purple)', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> },
                   { label: 'Tone', value: agent.tone as string || '—', color: 'var(--green)', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
                 ].map(stat => (
-                  <div key={stat.label} style={{
-                    background: 'var(--bg2)', border: '1px solid var(--border)',
-                    borderRadius: 10, padding: '24px 28px',
-                    display: 'flex', alignItems: 'center', gap: 18,
-                  }}>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: 12,
-                      background: 'var(--bg3)', border: '1px solid var(--border2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: stat.color, flexShrink: 0,
-                    }}>
+                  <div key={stat.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '24px 28px', display: 'flex', alignItems: 'center', gap: 18 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bg3)', border: '1px solid var(--border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: stat.color, flexShrink: 0 }}>
                       {stat.icon}
                     </div>
                     <div>
@@ -354,25 +346,13 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               {upcomingEvents.length > 0 && (
                 <div style={{ marginBottom: 36 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>
-                      Upcoming events
-                    </div>
-                    <button onClick={() => setView('calendar')} className="btn btn-ghost btn-sm" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)' }}>
-                      View calendar →
-                    </button>
+                    <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>Upcoming events</div>
+                    <button onClick={() => setView('calendar')} className="btn btn-ghost btn-sm" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)' }}>View calendar →</button>
                   </div>
                   <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
                     {upcomingEvents.map(event => (
-                      <div key={event.id} style={{
-                        flexShrink: 0, padding: '14px 18px',
-                        background: 'var(--bg2)', borderRadius: 10,
-                        border: '1px solid var(--border)',
-                        borderLeft: `3px solid ${EVENT_COLORS[event.event_type] || '#6b7280'}`,
-                        minWidth: 180,
-                      }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, fontFamily: 'var(--sidebar-font)' }}>
-                          {event.title}
-                        </div>
+                      <div key={event.id} style={{ flexShrink: 0, padding: '14px 18px', background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', borderLeft: `3px solid ${EVENT_COLORS[event.event_type] || '#6b7280'}`, minWidth: 180 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, fontFamily: 'var(--sidebar-font)' }}>{event.title}</div>
                         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>
                           {new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           {event.event_time && ` · ${formatEventTime(event.event_time)}`}
@@ -390,29 +370,15 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
 
               {/* Quick actions */}
               <div style={{ marginBottom: 36 }}>
-                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>
-                  Quick actions
-                </div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>Quick actions</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                   {QUICK_ACTIONS.map((action, i) => (
                     <button key={i} onClick={() => startAction(action)}
-                      style={{
-                        textAlign: 'left', padding: '18px 20px',
-                        background: 'var(--bg2)', border: '1px solid var(--border)',
-                        borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border3)'
-                        ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--bg3)'
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
-                        ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--bg2)'
-                      }}>
+                      style={{ textAlign: 'left', padding: '18px 20px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border3)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg3)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg2)' }}>
                       <div style={{ color: 'var(--fg3)', marginBottom: 10 }}>{action.icon}</div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>
-                        {action.label}
-                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>{action.label}</div>
                     </button>
                   ))}
                 </div>
@@ -421,34 +387,19 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               {/* Recent activity */}
               {recentRuns.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>
-                    Recent activity
-                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>Recent activity</div>
                   <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     {recentRuns.map((run, i) => (
                       <div key={i}
-                        style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: '14px 20px',
-                          borderBottom: i < recentRuns.length - 1 ? '1px solid var(--border)' : 'none',
-                          cursor: 'pointer', transition: 'background 0.1s',
-                        }}
-                        onClick={() => {
-                          setView('chat')
-                          setMessages([
-                            { role: 'user', content: run.input as string, timestamp: run.created_at as string },
-                            { role: 'assistant', content: run.output as string, timestamp: run.created_at as string },
-                          ])
-                        }}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: i < recentRuns.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                        onClick={() => { setView('chat'); setMessages([{ role: 'user', content: run.input as string, timestamp: run.created_at as string }, { role: 'assistant', content: run.output as string, timestamp: run.created_at as string }]) }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--bg3)'}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
                         <div style={{ overflow: 'hidden', flex: 1 }}>
                           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--sidebar-font)' }}>
                             {(run.input as string)?.slice(0, 70)}{(run.input as string)?.length > 70 ? '...' : ''}
                           </div>
-                          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>
-                            {run.automation_type as string}
-                          </div>
+                          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>{run.automation_type as string}</div>
                         </div>
                         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)', flexShrink: 0, marginLeft: 20 }}>
                           {timeAgo(run.created_at as string)}
@@ -467,21 +418,9 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                 {QUICK_ACTIONS.slice(0, 6).map((action, i) => (
                   <button key={i} onClick={() => startAction(action)}
-                    style={{
-                      fontFamily: 'var(--sidebar-font)', fontSize: 12, padding: '6px 14px',
-                      background: 'var(--bg2)', border: '1px solid var(--border)',
-                      borderRadius: 20, cursor: 'pointer', color: 'var(--fg3)',
-                      transition: 'all 0.1s', display: 'flex', alignItems: 'center',
-                      gap: 6, fontWeight: 500,
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg)'
-                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border2)'
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg3)'
-                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
-                    }}>
+                    style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12, padding: '6px 14px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, cursor: 'pointer', color: 'var(--fg3)', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border2)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg3)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)' }}>
                     {action.icon} {action.label}
                   </button>
                 ))}
@@ -490,14 +429,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 16 }}>
                 {messages.map((msg, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                    <div style={{
-                      maxWidth: '75%',
-                      background: msg.role === 'user' ? 'var(--fg)' : 'var(--bg2)',
-                      color: msg.role === 'user' ? 'var(--bg)' : 'var(--fg)',
-                      border: `1px solid ${msg.role === 'user' ? 'var(--fg)' : 'var(--border)'}`,
-                      borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                      padding: '12px 16px',
-                    }}>
+                    <div style={{ maxWidth: '75%', background: msg.role === 'user' ? 'var(--fg)' : 'var(--bg2)', color: msg.role === 'user' ? 'var(--bg)' : 'var(--fg)', border: `1px solid ${msg.role === 'user' ? 'var(--fg)' : 'var(--border)'}`, borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px', padding: '12px 16px' }}>
                       {msg.role === 'assistant' && (
                         <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 11, color: 'var(--accent)', marginBottom: 8, fontWeight: 700, letterSpacing: 0.5 }}>
                           {agent.agent_name as string}

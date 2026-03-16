@@ -123,6 +123,9 @@ ${upcomingEvents.map((e: Record<string, unknown>) => `- ${e.event_date} ${e.even
 </html>`
     }
 
+    const in14Days = new Date(today)
+    in14Days.setDate(in14Days.getDate() + 14)
+
     const systemPrompt = `You are ${agent.agent_name}, a professional AI business agent for ${agent.business_name}.
 Industry: ${agent.industry}
 Tone: ${agent.tone}
@@ -168,34 +171,39 @@ Bill To: [client name]
 
 [Item 1] | 1 | $[rate or "Included"] | $[amount or 0.00]
 [Item 2] | 1 | Included | $0.00
-[Item 3] | 1 | Included | $0.00
-... one line per item, NO EXCEPTIONS ...
+...
 
 Subtotal: $[total before tax]
 Tax (10%): $[tax]
 Total Due: $[grand total]
 
 INVOICE MARKER FORMAT — items separated by &&:
-[SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00&&Item3|1|Included|$0.00&&...]
+[SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00&&...]
 
-EXAMPLE — "Invoice Cara $3800 for: Workshop, Brand Strategy, Two Concept Proposal, Final Concept, Logo Suite, Brand Guide, Collaterals. One lump sum.":
+━━━ ORDER RECORD RULES ━━━
 
-INVOICE #INV-2026-001
-Bill To: Cara
+When user wants to create an order record, track an order, or record a sale:
 
-Phase 1 - Workshop | 1 | $3,800.00 | $3,800.00
-Phase 2 - Brand Strategy | 1 | Included | $0.00
-Phase 3 - Two Concept Proposal | 1 | Included | $0.00
-Phase 4 - Final Refined Concept | 1 | Included | $0.00
-Phase 5 - Logo and Graphic Suite | 1 | Included | $0.00
-Phase 6 - Brand Guide | 1 | Included | $0.00
-Phase 7 - Brand Collaterals (up to 5) | 1 | Included | $0.00
+ORDER TEXT FORMAT (show in response):
+ORDER #ORD-[YEAR]-[NUMBER]
+Client: [name]
+Status: pending
 
-Subtotal: $3800
-Tax (10%): $380
-Total Due: $4180
+[Item description] | Qty: [qty] | Unit price: $[price] | Line total: $[amount]
+Delivery: $[amount] (if applicable)
 
-[SEND_INVOICE::INV-2026-001:Cara:3800:380:4180:Phase 1 - Workshop|1|$3,800.00|$3,800.00&&Phase 2 - Brand Strategy|1|Included|$0.00&&Phase 3 - Two Concept Proposal|1|Included|$0.00&&Phase 4 - Final Refined Concept|1|Included|$0.00&&Phase 5 - Logo and Graphic Suite|1|Included|$0.00&&Phase 6 - Brand Guide|1|Included|$0.00&&Phase 7 - Brand Collaterals (up to 5)|1|Included|$0.00]
+Subtotal: $[subtotal]
+Tax (10%): $[tax]
+Total: $[total]
+Due: [due date]
+
+ORDER MARKER:
+[CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:item1desc|qty|unitprice|linetotal&&item2desc|qty|unitprice|linetotal:subtotal:tax:delivery:discount:grandtotal]
+
+EXAMPLE — "Order for David Chen, 5 oak shelves at $85 each, $40 delivery, due in 14 days":
+[CREATE_ORDER:David Chen:::pending:${in14Days.toISOString().split('T')[0]}::5x Custom Oak Shelves|5|85|425&&Delivery Charge|1|40|40:425:0:40:0:465]
+
+After creating order ask: "Would you like me to also generate an invoice for this order?"
 
 CONTRACT FORMAT:
 # Parties
@@ -275,6 +283,58 @@ GENERAL RULES:
     let invoiceHTML = null
     let calendarEvent = null
 
+    // Handle order
+    const orderMatch = reply.match(/\[CREATE_ORDER:([^\]]+)\]/)
+    if (orderMatch) {
+      const parts = orderMatch[1].split(':')
+      const clientName = parts[0]?.trim()
+      const clientEmail = parts[1]?.trim()
+      const clientPhone = parts[2]?.trim()
+      const status = parts[3]?.trim() || 'pending'
+      const orderDueDate = parts[4]?.trim()
+      const notes = parts[5]?.trim()
+      const itemsRaw = parts[6]?.split('&&') || []
+      const subtotal = parseFloat(parts[7]) || 0
+      const tax = parseFloat(parts[8]) || 0
+      const delivery = parseFloat(parts[9]) || 0
+      const discount = parseFloat(parts[10]) || 0
+      const total = parseFloat(parts[11]) || 0
+
+      const items = itemsRaw.map((item: string) => {
+        const p = item.split('|')
+        return {
+          description: p[0]?.trim(),
+          quantity: parseFloat(p[1]) || 1,
+          unit_price: parseFloat(p[2]) || 0,
+          total: parseFloat(p[3]) || 0,
+        }
+      })
+
+      const year = new Date().getFullYear()
+      const orderNumber = `ORD-${year}-${Math.floor(Math.random() * 900) + 100}`
+
+      const { data: order } = await supabase.from('orders').insert({
+        business_agent_id: agent.id,
+        order_number: orderNumber,
+        client_name: clientName,
+        client_email: clientEmail || null,
+        client_phone: clientPhone || null,
+        status,
+        items,
+        subtotal,
+        tax,
+        delivery,
+        discount,
+        total,
+        notes: notes || null,
+        due_date: orderDueDate || null,
+      }).select().single()
+
+      if (order) {
+        reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
+      }
+    }
+
     // Save memories
     const memoryMatches = [...reply.matchAll(/\[REMEMBER:([^:]+):([^:]+):([^\]]+)\]/g)]
     for (const match of memoryMatches) {
@@ -331,9 +391,8 @@ GENERAL RULES:
       const tax = parts[4]?.trim()
       const total = parts[5]?.trim()
 
-      // Parse unlimited line items separated by &&
       const itemsRaw = (parts[6] || '').split('&&')
-      const lineItemsHTML = itemsRaw.map((item, index) => {
+      const lineItemsHTML = itemsRaw.map((item: string) => {
         const p = item.split('|')
         const desc = p[0]?.trim() || 'Service'
         const qty = p[1]?.trim() || '1'
