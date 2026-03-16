@@ -9,6 +9,8 @@ interface Message {
   content: string
   timestamp: string
   emailSent?: boolean
+  documentId?: string
+  documentType?: string
 }
 
 export default function AgentClient({ agent }: { agent: Record<string, unknown> }) {
@@ -59,6 +61,8 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
         content: data.reply,
         timestamp: new Date().toISOString(),
         emailSent: data.emailSent,
+        documentId: data.documentId,
+        documentType: data.documentType,
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -130,11 +134,37 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                   </div>
                 )}
                 <div style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+
                 {msg.emailSent && (
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#4ade80', marginTop: 10, padding: '4px 10px', background: '#0d2e14', borderRadius: 6, display: 'inline-block', border: '1px solid #1a4a24' }}>
                     ✓ email sent automatically
                   </div>
                 )}
+
+                {msg.documentId && (
+                  <div>
+                    <a
+                      href={`/document/${msg.documentId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-block',
+                        marginTop: 10,
+                        fontFamily: 'var(--mono)',
+                        fontSize: 11,
+                        color: '#1a1a1a',
+                        background: '#c8f135',
+                        padding: '6px 14px',
+                        borderRadius: 6,
+                        textDecoration: 'none',
+                        fontWeight: 600,
+                      }}
+                    >
+                      📄 Open & Print {msg.documentType} →
+                    </a>
+                  </div>
+                )}
+
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: 8, opacity: 0.5 }}>
                   {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </div>
