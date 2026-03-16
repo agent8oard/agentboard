@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import Navbar from '@/components/Navbar'
 
 export default async function AgentsPage() {
   const { data: agents } = await supabase
@@ -8,50 +9,46 @@ export default async function AgentsPage() {
     .eq('is_active', true)
     .order('created_at', { ascending: false })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   return (
-    <main style={{ fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700 }}>Browse Agents</h1>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <Link href="/agents/new" style={{ background: '#000', color: '#fff', padding: '10px 20px', borderRadius: 8, textDecoration: 'none', fontSize: 14 }}>
-            + List Agent
-          </Link>
-          <Link href="/" style={{ color: '#666', textDecoration: 'none' }}>← Home</Link>
+    <>
+      <Navbar active="agents" />
+      <div className="page">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 40 }}>
+          <div>
+            <div className="section-label">marketplace</div>
+            <h1 className="section-title" style={{ marginBottom: 0 }}>Browse Agents</h1>
+          </div>
+          <Link href="/agents/new" className="btn btn-accent" style={{ fontSize: 13, padding: '10px 22px' }}>+ List your agent</Link>
+        </div>
+
+        {(!agents || agents.length === 0) && (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13 }}>
+            No agents listed yet — be the first.
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+          {agents?.map(agent => (
+            <div key={agent.id} className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                <span className="tag">{agent.category}</span>
+                <span className={`badge badge-${agent.badge || 'new'}`}>{agent.badge || 'new'}</span>
+              </div>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 400, marginBottom: 8 }}>{agent.name}</h2>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20, minHeight: 60 }}>{agent.description}</p>
+              {agent.tags?.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+                  {agent.tags.map((t: string) => <span key={t} className="tag">{t}</span>)}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 500 }}>{agent.price_label}</span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--muted)' }}>★ {agent.rating || '—'}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {agents?.length === 0 && (
-        <p style={{ color: '#666' }}>No agents listed yet. Be the first!</p>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
-        {agents?.map(agent => (
-          <div key={agent.id} style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: 20 }}>
-            <div style={{ fontSize: 13, background: '#f3f3f3', display: 'inline-block', padding: '3px 10px', borderRadius: 20, marginBottom: 10 }}>
-              {agent.category}
-            </div>
-
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{agent.name}</h2>
-
-            <p style={{ fontSize: 14, color: '#666', marginBottom: 16, lineHeight: 1.5 }}>
-              {agent.description}
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600 }}>{agent.price_label}</span>
-              <span style={{ fontSize: 13, color: '#888' }}>★ {agent.rating}</span>
-            </div>
-
-            {user?.id === agent.user_id && (
-              <DeleteAgentButton agentId={agent.id} />
-            )}
-          </div>
-        ))}
-      </div>
-    </main>
+    </>
   )
 }
