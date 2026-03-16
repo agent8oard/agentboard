@@ -152,3 +152,137 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted); letter-spacing: 0.5px;
 }
 .stat-sub { font-size: 12px; color: var(--muted2); margin-top: 4px; }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+
+  .page {
+    padding: 24px 16px !important;
+  }
+
+  .nav {
+    padding: 0 16px !important;
+  }
+
+  .nav-links {
+    gap: 8px !important;
+  }
+
+  .card {
+    padding: 16px !important;
+  }
+
+  h1 {
+    font-size: clamp(28px, 8vw, 88px) !important;
+  }
+
+  h2 {
+    font-size: clamp(22px, 6vw, 48px) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 20px 16px !important;
+  }
+
+  .nav {
+    padding: 0 16px !important;
+    height: 52px !important;
+  }
+
+  .card {
+    padding: 16px !important;
+  }
+
+  /* Agent dashboard header buttons wrap on mobile */
+  .agent-header-buttons {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* Dashboard grid single column on mobile */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Builder steps full width */
+  .builder-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Calendar full width on mobile */
+  .calendar-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Analytics grid */
+  .analytics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Feature cards stack */
+  .feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Manage tabs scroll horizontally */
+  .manage-tabs {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* Form grids single column */
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Text scaling */
+  h1 {
+    font-size: clamp(28px, 9vw, 88px) !important;
+  }
+
+  h2 {
+    font-size: clamp(22px, 7vw, 48px) !important;
+  }
+
+  h3 {
+    font-size: clamp(18px, 5vw, 28px) !important;
+  }
+
+  /* Buttons full width on mobile */
+  .btn-mobile-full {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Hide desktop only elements */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Document preview modal full screen on mobile */
+  .doc-preview-modal {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  .doc-preview-inner {
+    border-radius: 16px 16px 0 0 !important;
+    max-height: 95vh !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 16px 12px !important;
+  }
+
+  .nav-logo {
+    font-size: 14px !important;
+  }
+
+  h1 {
+    font-size: clamp(26px, 10vw, 88px) !important;
+  }
+}
