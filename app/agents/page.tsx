@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import DeleteAgentButton from '@/components/DeleteAgentButton'
 
 export default async function AgentsPage() {
   const { data: agents } = await supabase
