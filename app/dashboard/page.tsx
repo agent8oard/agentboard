@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [businessAgents, setBusinessAgents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [openTask, setOpenTask] = useState<string | null>(null)
+  const [deletingAgent, setDeletingAgent] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +44,14 @@ export default function DashboardPage() {
   }, [])
 
   const getProposalsForTask = (taskId: string) => proposals.filter(p => p.task_id === taskId)
+
+  const deleteBusinessAgent = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this agent? This cannot be undone.')) return
+    setDeletingAgent(id)
+    await supabase.from('business_agents').delete().eq('id', id)
+    setBusinessAgents(prev => prev.filter(a => a.id !== id))
+    setDeletingAgent(null)
+  }
 
   if (loading) return (
     <>
@@ -77,12 +86,28 @@ export default function DashboardPage() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {businessAgents.map(ba => (
-                <Link href={`/agent/${ba.id}`} key={ba.id} className="card" style={{ display: 'block' }}>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>{ba.industry}</div>
-                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 400, marginBottom: 4 }}>{ba.agent_name}</h3>
-                  <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{ba.business_name}</p>
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)' }}>{ba.automations?.length} automations →</div>
-                </Link>
+                <div key={ba.id} style={{ position: 'relative' }}>
+                  <Link href={`/agent/${ba.id}`} className="card" style={{ display: 'block', paddingBottom: 52 }}>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>{ba.industry}</div>
+                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 400, marginBottom: 4 }}>{ba.agent_name}</h3>
+                    <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>{ba.business_name}</p>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)' }}>
+                      {ba.automations?.length} automations →
+                    </div>
+                  </Link>
+                  <div style={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', gap: 6 }}>
+                    <Link href={`/agent/${ba.id}/manage`}
+                      style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '5px 10px', background: 'transparent', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--muted)', textDecoration: 'none' }}>
+                      ⚙ manage
+                    </Link>
+                    <button
+                      onClick={() => deleteBusinessAgent(ba.id)}
+                      disabled={deletingAgent === ba.id}
+                      style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '5px 10px', background: 'transparent', border: '1px solid #4a1a1a', borderRadius: 6, color: '#f87171', cursor: 'pointer', opacity: deletingAgent === ba.id ? 0.5 : 1 }}>
+                      {deletingAgent === ba.id ? '...' : '🗑 delete'}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -98,7 +123,7 @@ export default function DashboardPage() {
           </div>
           {agents.length === 0 ? (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 40, textAlign: 'center' }}>
-              <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>You haven't listed any agents yet.</p>
+              <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>No agents listed yet.</p>
               <Link href="/agents/new" className="btn btn-outline" style={{ fontSize: 13 }}>List your first agent →</Link>
             </div>
           ) : (
@@ -131,7 +156,7 @@ export default function DashboardPage() {
           </div>
           {tasks.length === 0 ? (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 40, textAlign: 'center' }}>
-              <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>You haven't posted any tasks yet.</p>
+              <p style={{ color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13, marginBottom: 16 }}>No tasks posted yet.</p>
               <Link href="/tasks/new" className="btn btn-outline" style={{ fontSize: 13 }}>Post your first task →</Link>
             </div>
           ) : (
