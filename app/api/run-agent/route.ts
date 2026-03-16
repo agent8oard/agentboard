@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       headers: {
         "x-api-key": process.env.ANTHROPIC_API_KEY!,
         "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
+        "content-type": "application/json",
       },
       body: JSON.stringify({
         model: "claude-3-haiku-20240307",
@@ -17,18 +17,43 @@ export async function POST(req: Request) {
         messages: [
           {
             role: "user",
-            content: task
-          }
-        ]
-      })
+            content: task,
+          },
+        ],
+      }),
     })
 
     const data = await response.json()
 
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          error: "Anthropic API error",
+          details: data,
+        },
+        { status: response.status }
+      )
+    }
+
+    const text =
+      Array.isArray(data.content)
+        ? data.content
+            .filter((block: any) => block.type === "text")
+            .map((block: any) => block.text)
+            .join("\n")
+        : ""
+
     return NextResponse.json({
-      result: data.content?.[0]?.text || "No result returned"
+      result: text || "No text block returned",
+      raw: data,
     })
   } catch (error) {
-    return NextResponse.json({ error: "Agent failed" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Agent failed",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    )
   }
 }
