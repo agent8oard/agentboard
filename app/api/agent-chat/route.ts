@@ -77,6 +77,7 @@ GENERAL:
     let emailSent = false
     let documentId = null
     let documentType = null
+    let invoiceHTML = null
 
     // Handle invoice
     const invoiceMatch = reply.match(/\[SEND_INVOICE:([^\]]+)\]/)
@@ -104,7 +105,7 @@ GENERAL:
           <td align="right" style="padding:14px 16px;font-size:14px;font-weight:700;color:#0a0a0a;border-bottom:1px solid #f3f4f6;">$${itemAmount}</td>
         </tr>`
 
-      const invoiceHTML = `<!DOCTYPE html>
+      invoiceHTML = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
@@ -112,7 +113,6 @@ GENERAL:
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
 
-  <!-- HEADER -->
   <tr>
     <td style="background:#0a0a0a;padding:40px 48px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -133,7 +133,6 @@ GENERAL:
     </td>
   </tr>
 
-  <!-- DATE BAR -->
   <tr>
     <td style="background:#111111;padding:18px 48px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -159,11 +158,9 @@ GENERAL:
     </td>
   </tr>
 
-  <!-- BODY -->
   <tr>
     <td style="padding:40px 48px;background:#ffffff;">
 
-      <!-- BILL TO -->
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
         <tr>
           <td style="background:#f9fafb;border-left:4px solid #0a0a0a;padding:18px 24px;border-radius:0 8px 8px 0;">
@@ -174,7 +171,6 @@ GENERAL:
         </tr>
       </table>
 
-      <!-- LINE ITEMS -->
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;border-radius:8px;overflow:hidden;">
         <tr style="background:#0a0a0a;">
           <td style="padding:12px 16px;color:#ffffff;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;">DESCRIPTION</td>
@@ -185,19 +181,18 @@ GENERAL:
         ${lineItemsHTML}
       </table>
 
-      <!-- TOTALS -->
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
         <tr>
-          <td width="60%"></td>
-          <td width="40%">
+          <td width="55%"></td>
+          <td width="45%">
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border-radius:10px;padding:20px 24px;">
               <tr>
                 <td style="padding:5px 0;font-size:13px;color:#6b7280;">Subtotal</td>
                 <td align="right" style="padding:5px 0;font-size:13px;color:#374151;">$${subtotal}</td>
               </tr>
               <tr>
-                <td style="padding:5px 0;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:12px;">GST / Tax (10%)</td>
-                <td align="right" style="padding:5px 0;font-size:13px;color:#374151;border-bottom:1px solid #e5e7eb;padding-bottom:12px;">$${tax}</td>
+                <td style="padding:5px 0 12px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">GST / Tax (10%)</td>
+                <td align="right" style="padding:5px 0 12px;font-size:13px;color:#374151;border-bottom:1px solid #e5e7eb;">$${tax}</td>
               </tr>
               <tr>
                 <td style="padding-top:12px;font-size:17px;font-weight:800;color:#0a0a0a;">Total Due</td>
@@ -208,8 +203,7 @@ GENERAL:
         </tr>
       </table>
 
-      <!-- PAYMENT INFO -->
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td style="background:#0a0a0a;border-radius:10px;padding:20px 24px;">
             <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">PAYMENT INSTRUCTIONS</div>
@@ -221,7 +215,6 @@ GENERAL:
     </td>
   </tr>
 
-  <!-- FOOTER -->
   <tr>
     <td style="background:#f9fafb;padding:24px 48px;border-top:2px solid #0a0a0a;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -245,6 +238,30 @@ GENERAL:
 </body>
 </html>`
 
+      // Save document to Supabase
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+        const { data: doc } = await supabase
+          .from('documents')
+          .insert({
+            agent_id: agent.id,
+            type: 'INVOICE',
+            content: invoiceHTML,
+            metadata: { invoiceNumber, clientName, subtotal, tax, total, recipientEmail },
+          })
+          .select()
+          .single()
+
+        if (doc) {
+          documentId = doc.id
+          documentType = 'INVOICE'
+        }
+      } catch { }
+
+      // Send invoice email
       try {
         const resend = new Resend(process.env.RESEND_API_KEY)
         const { error } = await resend.emails.send({
@@ -278,9 +295,7 @@ GENERAL:
     <td style="background:#0a0a0a;padding:28px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td>
-            <div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div>
-          </td>
+          <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div></td>
           <td align="right">
             <span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">Message</span>
           </td>
@@ -326,7 +341,7 @@ GENERAL:
 
     // Handle document creation
     const docMatch = reply.match(/\[CREATE_DOCUMENT:([^:]+):([^\]]+)\]/)
-    if (docMatch) {
+    if (docMatch && !invoiceMatch) {
       documentType = docMatch[1]
       const params = docMatch[2].split('|')
       reply = reply.replace(/\[CREATE_DOCUMENT:[^\]]+\]/g, '').trim()
@@ -351,12 +366,12 @@ GENERAL:
 
         if (doc) {
           documentId = doc.id
-          reply += `\n\n📄 ${documentType} ready — click to open and print.`
+          reply += `\n\n📄 ${documentType} ready — click to view and print.`
         }
       } catch { }
     }
 
-    return NextResponse.json({ reply, emailSent, documentId, documentType })
+    return NextResponse.json({ reply, emailSent, documentId, documentType, invoiceHTML })
 
   } catch (err) {
     console.error('Agent chat error:', err)
