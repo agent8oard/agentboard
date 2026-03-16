@@ -51,7 +51,6 @@ export default function ManageClient({
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -61,7 +60,6 @@ export default function ManageClient({
         setCsvHeaders(headers)
         setCsvPreview(rows.slice(0, 5))
         setCsvAllRows(rows)
-
         const autoMap: Record<string, string> = {}
         headers.forEach(h => {
           const lower = h.toLowerCase()
@@ -83,7 +81,6 @@ export default function ManageClient({
   const importContacts = async () => {
     if (!csvAllRows.length) return
     setImporting(true)
-
     const contactsToInsert = csvAllRows.map(row => {
       const contact: Record<string, string> = { name: '', email: '', phone: '', company: '', notes: '' }
       Object.entries(columnMap).forEach(([col, field]) => {
@@ -101,11 +98,7 @@ export default function ManageClient({
       }
     }).filter(c => c.name !== 'Unknown' || c.email)
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .insert(contactsToInsert)
-      .select()
-
+    const { data, error } = await supabase.from('contacts').insert(contactsToInsert).select()
     if (error) {
       showMsg(`Import failed: ${error.message}`, 'error')
     } else {
@@ -124,11 +117,7 @@ export default function ManageClient({
     const reader = new FileReader()
     reader.onload = (ev) => {
       const content = ev.target?.result as string
-      setNewKb(prev => ({
-        ...prev,
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        content: content.slice(0, 5000),
-      }))
+      setNewKb(prev => ({ ...prev, title: file.name.replace(/\.[^/.]+$/, ''), content: content.slice(0, 5000) }))
       showMsg('File loaded! Review and save to knowledge base.')
     }
     reader.readAsText(file)
@@ -144,11 +133,7 @@ export default function ManageClient({
       content: newKb.content,
       type: newKb.type,
     }).select().single()
-    if (data) {
-      setKb(prev => [data, ...prev])
-      setNewKb({ title: '', content: '', type: 'general' })
-      showMsg('Knowledge saved!')
-    }
+    if (data) { setKb(prev => [data, ...prev]); setNewKb({ title: '', content: '', type: 'general' }); showMsg('Knowledge saved!') }
     setSaving(false)
   }
 
@@ -161,14 +146,9 @@ export default function ManageClient({
     if (!newContact.name) return
     setSaving(true)
     const { data } = await supabase.from('contacts').insert({
-      business_agent_id: agent.id,
-      ...newContact,
+      business_agent_id: agent.id, ...newContact,
     }).select().single()
-    if (data) {
-      setCts(prev => [data, ...prev])
-      setNewContact({ name: '', email: '', phone: '', company: '', notes: '' })
-      showMsg('Contact saved!')
-    }
+    if (data) { setCts(prev => [data, ...prev]); setNewContact({ name: '', email: '', phone: '', company: '', notes: '' }); showMsg('Contact saved!') }
     setSaving(false)
   }
 
@@ -190,11 +170,7 @@ export default function ManageClient({
       email: newTeam.email,
       role: newTeam.role,
     }).select().single()
-    if (data) {
-      setTm(prev => [data, ...prev])
-      setNewTeam({ email: '', role: 'member' })
-      showMsg('Team member invited!')
-    }
+    if (data) { setTm(prev => [data, ...prev]); setNewTeam({ email: '', role: 'member' }); showMsg('Team member invited!') }
     setSaving(false)
   }
 
@@ -256,18 +232,14 @@ export default function ManageClient({
               <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
                 Add pricing, FAQs, policies, products — anything your agent should know about your business.
               </p>
-
               <div style={{ background: 'var(--bg3)', border: '2px dashed var(--border2)', borderRadius: 10, padding: '16px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>📄 Upload a file</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>TXT, CSV, or any text file — agent learns from it instantly</div>
                 </div>
-                <button onClick={() => kbFileRef.current?.click()} className="btn btn-outline" style={{ fontSize: 12 }}>
-                  Choose file
-                </button>
+                <button onClick={() => kbFileRef.current?.click()} className="btn btn-outline" style={{ fontSize: 12 }}>Choose file</button>
                 <input ref={kbFileRef} type="file" accept=".txt,.csv,.md" onChange={handleKbFileUpload} style={{ display: 'none' }} />
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
                   <label className="label">Title</label>
@@ -297,7 +269,7 @@ export default function ManageClient({
 
             {kb.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 13 }}>
-                No knowledge added yet. Add your first entry above.
+                No knowledge added yet.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -352,7 +324,6 @@ export default function ManageClient({
                 <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
                   We detected {csvHeaders.length} columns and {csvAllRows.length} rows. Map each column to a contact field.
                 </p>
-
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
                   {csvHeaders.map(header => (
                     <div key={header}>
@@ -363,7 +334,6 @@ export default function ManageClient({
                     </div>
                   ))}
                 </div>
-
                 <div style={{ marginBottom: 20 }}>
                   <div className="label" style={{ marginBottom: 10 }}>Preview (first 5 rows)</div>
                   <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
@@ -391,7 +361,6 @@ export default function ManageClient({
                     </table>
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={importContacts} disabled={importing} className="btn btn-accent" style={{ fontSize: 13 }}>
                     {importing ? 'Importing...' : `Import all ${csvAllRows.length} contacts →`}
