@@ -18,28 +18,38 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    const [{ data: memories }, { data: knowledge }, { data: contacts }, { data: upcomingEvents }] = await Promise.all([
+    const [{ data: memories }, { data: knowledge }, { data: contacts }, { data: upcomingEvents }, { data: recentOrders }, { data: recentDocs }] = await Promise.all([
       supabase.from('agent_memory').select('*').eq('business_agent_id', agent.id).order('updated_at', { ascending: false }),
       supabase.from('knowledge_base').select('*').eq('business_agent_id', agent.id),
       supabase.from('contacts').select('*').eq('business_agent_id', agent.id),
       supabase.from('calendar_events').select('*').eq('business_agent_id', agent.id).gte('event_date', today.toISOString().split('T')[0]).order('event_date', { ascending: true }).limit(10),
+      supabase.from('orders').select('*').eq('business_agent_id', agent.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('documents').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }).limit(5),
     ])
 
     const memoryContext = memories?.length ? `
-WHAT I REMEMBER ABOUT THIS BUSINESS:
+MEMORY:
 ${memories.map((m: Record<string, unknown>) => `- ${m.key}: ${m.value}`).join('\n')}` : ''
 
     const knowledgeContext = knowledge?.length ? `
-BUSINESS KNOWLEDGE BASE:
+KNOWLEDGE BASE:
 ${knowledge.map((k: Record<string, unknown>) => `[${k.type}] ${k.title}: ${k.content}`).join('\n')}` : ''
 
     const contactsContext = contacts?.length ? `
-KNOWN CUSTOMERS & CONTACTS:
+CONTACTS:
 ${contacts.map((c: Record<string, unknown>) => `- ${c.name}${c.email ? ` (${c.email})` : ''}${c.company ? ` at ${c.company}` : ''}${c.notes ? ` — ${c.notes}` : ''}`).join('\n')}` : ''
 
     const calendarContext = upcomingEvents?.length ? `
-UPCOMING CALENDAR EVENTS:
-${upcomingEvents.map((e: Record<string, unknown>) => `- ${e.event_date} ${e.event_time || ''}: ${e.title}${e.location ? ` at ${e.location}` : ''}${e.description ? ` — ${e.description}` : ''}`).join('\n')}` : ''
+UPCOMING:
+${upcomingEvents.map((e: Record<string, unknown>) => `- ${e.event_date} ${e.event_time || ''}: ${e.title}${e.location ? ` at ${e.location}` : ''}`).join('\n')}` : ''
+
+    const ordersContext = recentOrders?.length ? `
+RECENT ORDERS:
+${recentOrders.map((o: Record<string, unknown>) => `- ${o.order_number} | ${o.client_name} | $${o.total} | ${o.status}`).join('\n')}` : ''
+
+    const docsContext = recentDocs?.length ? `
+RECENT DOCUMENTS:
+${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as Record<string, unknown>)?.clientName || (d.metadata as Record<string, unknown>)?.title || 'Document'} | ${new Date(d.created_at as string).toLocaleDateString()}`).join('\n')}` : ''
 
     const buildDocumentHTML = (type: string, content: string, metadata: Record<string, unknown>) => {
       const docNumber = `DOC-${Date.now().toString().slice(-6)}`
@@ -125,143 +135,164 @@ ${upcomingEvents.map((e: Record<string, unknown>) => `- ${e.event_date} ${e.even
 </html>`
     }
 
-    const systemPrompt = `You are ${agent.agent_name}, a professional AI business agent for ${agent.business_name}.
+    const systemPrompt = `You are ${agent.agent_name}, the AI business assistant for ${agent.business_name}.
 Industry: ${agent.industry}
 Tone: ${agent.tone}
-${agent.system_prompt || ''}
+${agent.system_prompt ? `Business context: ${agent.system_prompt}` : ''}
 
 TODAY: ${formatDate(today)}
-DUE DATE (invoices): ${formatDate(dueDate)}
 
 ${memoryContext}
 ${knowledgeContext}
 ${contactsContext}
 ${calendarContext}
+${ordersContext}
+${docsContext}
 
-MEMORY INSTRUCTIONS:
-When you learn important information, save it:
+━━━ WHO YOU ARE ━━━
+
+You are NOT a generic AI. You are the dedicated assistant for ${agent.business_name}.
+- You know this business deeply — its clients, pricing, history, and preferences
+- You speak in the voice of the business — professional, direct, on-brand
+- When a client name appears in CONTACTS, use what you know about them
+- When pricing appears in KNOWLEDGE BASE, use those exact prices
+- You remember past orders, documents, and calendar events shown above
+- You make decisions the business owner would make — not generic safe answers
+
+━━━ HOW YOU RESPOND ━━━
+
+SPEED AND CONCISENESS:
+- Get to the point immediately — no preamble, no "Sure!", no "Great question!"
+- First sentence = what you are doing or have done
+- Use short paragraphs, never walls of text
+- If asked to do multiple things, do all of them in sequence without asking for permission
+- Confirm completion in one line at the end
+
+MULTI-STEP TASKS:
+When given a complex task with multiple steps, execute ALL steps automatically:
+1. Identify every sub-task in the request
+2. Execute them in logical order
+3. Use the appropriate markers for each action
+4. Give a brief summary at the end listing what was completed
+
+Example: "Schedule inspection for Jane on April 3, generate invoice for $180, email her confirmation"
+→ You MUST: add calendar event + create invoice + send email — all in one response, not asking "should I also..."
+
+BUSINESS VOICE:
+- Match the tone set in agent settings (${agent.tone})
+- Use industry-appropriate language for ${agent.industry}
+- Reference the business name naturally where appropriate
+- Sound like a knowledgeable team member, not a chatbot
+
+━━━ MEMORY INSTRUCTIONS ━━━
+Save important info automatically:
 [REMEMBER:category:key:value]
 Categories: customer, pricing, product, preference, general
 
-CONTACT INSTRUCTIONS:
-When you encounter a new customer:
+━━━ CONTACT INSTRUCTIONS ━━━
+Auto-save new contacts:
 [ADD_CONTACT:name:email:company:notes]
 
-CALENDAR INSTRUCTIONS:
-When user mentions a meeting, appointment, deadline or scheduled activity:
+━━━ CALENDAR INSTRUCTIONS ━━━
 [ADD_EVENT:title:date:time:type:location:description:attendees]
-- date format: YYYY-MM-DD
-- time format: HH:MM (24hr)
+- date: YYYY-MM-DD, time: HH:MM (24hr)
 - type: meeting, appointment, call, deadline, event, reminder
 
 ━━━ INVOICE RULES ━━━
 
-CRITICAL: Every single service, phase, or scope item mentioned by the user MUST appear as its own separate line item on the invoice. Never combine multiple items into one line.
+Every service or item = its own line. Never combine.
 
-PRICING RULES:
-- If user gives individual prices per item use those exact prices per line
-- If user gives one total price for multiple items show each item as its own line with Included in rate column and $0.00 in amount EXCEPT the last item which gets the full total
-- If user says lump sum or one total still list every item separately put full amount on first line rest show Included with $0.00
-- If user says split evenly divide total by number of items
+PRICING:
+- Individual prices given → use exact prices per line
+- One lump sum for multiple items → first line gets full amount, rest show "Included" / $0.00
+- Split evenly → divide total by number of items
 
-INVOICE TEXT FORMAT (show this in your response):
+INVOICE DISPLAY FORMAT:
 INVOICE #INV-[YEAR]-[NUMBER]
-Bill To: [client name]
+Bill To: [client]
 
-[Item 1] | 1 | $[rate] | $[amount]
-[Item 2] | 1 | Included | $0.00
+[Item] | 1 | $[rate] | $[amount]
 
-Subtotal: $[total before tax]
-Tax (10%): $[tax]
-Total Due: $[grand total]
+Subtotal: $[x]
+Tax (10%): $[x]
+Total Due: $[x]
 
-INVOICE MARKER FORMAT items separated by &&:
-[SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00&&...]
+INVOICE MARKER:
+[SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00]
 
 ━━━ ORDER RECORD RULES ━━━
 
-When user wants to create an order record, track an order, or record a sale use this EXACT format:
-
-ORDER TEXT FORMAT (show in response):
+ORDER DISPLAY FORMAT:
 ORDER #ORD-[YEAR]-[NUMBER]
 Client: [name]
-Status: pending
 
-[Item] | Qty: [n] | Unit: $[price] | Line total: $[amount]
-Delivery: $[amount]
+[Item] | Qty: [n] | Unit: $[price] | Total: $[amount]
 
-Subtotal: $[x]
-Tax: $[x]
-Delivery: $[x]
-Total: $[x]
-Due: [date]
+Subtotal: $[x] | Delivery: $[x] | Total: $[x]
 
-ORDER MARKER - use EXACTLY this format with no extra colons in the items section:
-[CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:itemdesc1|qty1|price1|total1&&itemdesc2|qty2|price2|total2:subtotal:tax:delivery:discount:grandtotal]
-
-EXAMPLE for "5 oak shelves at $85 each plus $40 delivery for David Chen due in 14 days":
-[CREATE_ORDER:David Chen:::pending:${in14Days.toISOString().split('T')[0]}::5x Custom Oak Shelves|5|85|425&&Delivery Charge|1|40|40:425:0:40:0:465]
+ORDER MARKER:
+[CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:itemdesc|qty|price|total&&item2|qty|price|total:subtotal:tax:delivery:discount:grandtotal]
 
 RULES:
-- Use && to separate line items only
-- Use | to separate item fields
-- Last 5 values after items are always: subtotal:tax:delivery:discount:grandtotal
-- grandtotal = subtotal + tax + delivery - discount
-- Never put colons inside item descriptions
+- && separates items, | separates item fields
+- Last 5 colon values: subtotal:tax:delivery:discount:grandtotal
+- No colons inside item descriptions
 
-After creating order ask: "Would you like me to also generate an invoice for this order?"
+After order ask: "Want me to generate an invoice for this order?"
 
-━━━ CONTRACT FORMAT ━━━
-# Parties
-# Services
-# Terms
-# Payment
-# Termination
-# Signatures
+━━━ QUOTE RULES ━━━
+
+QUOTE DISPLAY FORMAT:
+QUOTE #Q-[YEAR]-[NUMBER]
+Client: [name]
+Valid: [date]
+
+[Item] | Qty: [n] | Unit: $[price] | Total: $[amount]
+Total: $[x]
+
+QUOTE MARKER:
+[CREATE_QUOTE:clientName:clientEmail:validUntil:notes:itemdesc|qty|price|total&&item2|qty|price|total:subtotal:tax:discount:grandtotal]
+
+When user says "convert quote to invoice" or "client approved the quote" — generate the SEND_INVOICE marker automatically using the quote items.
+
+━━━ DOCUMENT FORMATS ━━━
+
+CONTRACT: # Parties # Services # Terms # Payment # Termination # Signatures
 [CREATE_DOCUMENT:CONTRACT:title|party1|party2]
 
-━━━ PROPOSAL FORMAT ━━━
-# Executive Summary
-# Scope of Work
-# Timeline
-# Investment
-# Next Steps
+PROPOSAL: # Executive Summary # Scope # Timeline # Investment # Next Steps
 [CREATE_DOCUMENT:PROPOSAL:title|clientName|date]
 
-━━━ REPORT FORMAT ━━━
-# Overview
-# Key Metrics
-# Highlights
-# Challenges
-# Recommendations
+REPORT: # Overview # Metrics # Highlights # Challenges # Recommendations
 [CREATE_DOCUMENT:REPORT:title|period|date]
 
-━━━ MEETING AGENDA FORMAT ━━━
-# Meeting Details
-# Attendees
-# Agenda Items
-# Action Items
+MEETING AGENDA: # Details # Attendees # Agenda # Action Items
 [CREATE_DOCUMENT:MEETING AGENDA:title|organizer|date]
 
-━━━ JOB LISTING FORMAT ━━━
-# About the Role
-# Responsibilities
-# Requirements
-# What We Offer
-# How to Apply
+JOB LISTING: # About Role # Responsibilities # Requirements # Benefits # Apply
 [CREATE_DOCUMENT:JOB LISTING:title|company|date]
 
-EMAIL FORMAT:
-Keep emails SHORT max 5 lines.
+━━━ EMAIL FORMAT ━━━
+Short — max 5 lines. Professional. On-brand.
 [SEND_EMAIL:email:subject]
 
-GENERAL RULES:
-- Be brief and professional
-- No markdown bold
-- Use # for headings - for bullets
-- Always confirm in one line what you did`
+━━━ MULTI-STEP TASK EXECUTION ━━━
 
-    const conversationHistory = history.slice(-10).map((msg: { role: string; content: string }) => ({
+When a request contains multiple actions, chain them ALL:
+
+"Schedule inspection for Jane on April 3 at 10:30am AND generate $180 invoice AND email confirmation"
+→ Execute: [ADD_EVENT:...] + [SEND_INVOICE:...] + [SEND_EMAIL:...]
+→ All in one response
+→ Summary: "Done — appointment added for April 3, invoice #INV-2026-xxx generated for $180, confirmation email sent to jane@email.com"
+
+"Create order for David, 5 shelves $85 each, $40 delivery, generate invoice due 14 days"
+→ Execute: [CREATE_ORDER:...] + [SEND_INVOICE:...]
+→ Summary: "Done — order ORD-2026-xxx created, invoice INV-2026-xxx generated for $465 due [date]"
+
+NEVER ask "should I also do X?" when X was clearly requested. Just do it.
+NEVER say "I'll now..." — just do it and confirm at the end.`
+
+    const conversationHistory = history.slice(-12).map((msg: { role: string; content: string }) => ({
       role: msg.role,
       content: msg.content,
     }))
@@ -289,67 +320,83 @@ GENERAL RULES:
     let invoiceHTML = null
     let calendarEvent = null
 
+    // Handle quote creation
+    const quoteMatch = reply.match(/\[CREATE_QUOTE:([^\]]+)\]/)
+    if (quoteMatch) {
+      try {
+        const raw = quoteMatch[1]
+        const parts = raw.split(':')
+        const clientName = parts[0]?.trim() || ''
+        const clientEmail = parts[1]?.trim() || ''
+        const validUntil = parts[2]?.trim() || ''
+        const notes = parts[3]?.trim() || ''
+        const remainder = parts.slice(4).join(':')
+        const remainderParts = remainder.split(':')
+        const grandtotal = parseFloat(remainderParts[remainderParts.length - 1]) || 0
+        const discount = parseFloat(remainderParts[remainderParts.length - 2]) || 0
+        const tax = parseFloat(remainderParts[remainderParts.length - 3]) || 0
+        const subtotal = parseFloat(remainderParts[remainderParts.length - 4]) || 0
+        const itemsStr = remainderParts.slice(0, remainderParts.length - 4).join(':')
+        const items = itemsStr.split('&&').filter((i: string) => i.trim()).map((item: string) => {
+          const p = item.split('|')
+          return { description: p[0]?.trim() || '', quantity: parseFloat(p[1]) || 1, unit_price: parseFloat(p[2]) || 0, total: parseFloat(p[3]) || 0 }
+        })
+        const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
+        await supabase.from('quotes').insert({
+          business_agent_id: agent.id,
+          quote_number: quoteNumber,
+          client_name: clientName,
+          client_email: clientEmail || null,
+          status: 'draft',
+          items, subtotal, tax, discount,
+          total: grandtotal,
+          notes: notes || null,
+          valid_until: validUntil || null,
+          converted_to_invoice: false,
+        })
+        reply = reply.replace(/\[CREATE_QUOTE:[^\]]+\]/g, '').trim()
+      } catch (e) {
+        console.error('Quote parsing error:', e)
+        reply = reply.replace(/\[CREATE_QUOTE:[^\]]+\]/g, '').trim()
+      }
+    }
+
     // Handle order
     const orderMatch = reply.match(/\[CREATE_ORDER:([^\]]+)\]/)
     if (orderMatch) {
       try {
         const raw = orderMatch[1]
         const parts = raw.split(':')
-
         const clientName = parts[0]?.trim() || ''
         const clientEmail = parts[1]?.trim() || ''
         const clientPhone = parts[2]?.trim() || ''
         const status = parts[3]?.trim() || 'pending'
         const orderDueDate = parts[4]?.trim() || ''
         const notes = parts[5]?.trim() || ''
-
-        // Remainder from index 6 onwards
         const remainder = parts.slice(6).join(':')
         const remainderParts = remainder.split(':')
-
-        // Last 5 are subtotal:tax:delivery:discount:grandtotal
         const grandtotal = parseFloat(remainderParts[remainderParts.length - 1]) || 0
         const discount = parseFloat(remainderParts[remainderParts.length - 2]) || 0
         const delivery = parseFloat(remainderParts[remainderParts.length - 3]) || 0
         const tax = parseFloat(remainderParts[remainderParts.length - 4]) || 0
         const subtotal = parseFloat(remainderParts[remainderParts.length - 5]) || 0
-
-        // Items are everything before the last 5 parts
         const itemsStr = remainderParts.slice(0, remainderParts.length - 5).join(':')
-        const itemsRaw = itemsStr.split('&&')
-
-        const items = itemsRaw
-          .filter((item: string) => item.trim())
-          .map((item: string) => {
-            const p = item.split('|')
-            return {
-              description: p[0]?.trim() || '',
-              quantity: parseFloat(p[1]) || 1,
-              unit_price: parseFloat(p[2]) || 0,
-              total: parseFloat(p[3]) || 0,
-            }
-          })
-
-        const year = new Date().getFullYear()
-        const orderNumber = `ORD-${year}-${Math.floor(Math.random() * 900) + 100}`
-
+        const items = itemsStr.split('&&').filter((i: string) => i.trim()).map((item: string) => {
+          const p = item.split('|')
+          return { description: p[0]?.trim() || '', quantity: parseFloat(p[1]) || 1, unit_price: parseFloat(p[2]) || 0, total: parseFloat(p[3]) || 0 }
+        })
+        const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
         await supabase.from('orders').insert({
           business_agent_id: agent.id,
           order_number: orderNumber,
           client_name: clientName,
           client_email: clientEmail || null,
           client_phone: clientPhone || null,
-          status,
-          items,
-          subtotal,
-          tax,
-          delivery,
-          discount,
+          status, items, subtotal, tax, delivery, discount,
           total: grandtotal,
           notes: notes || null,
           due_date: orderDueDate || null,
         })
-
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       } catch (e) {
         console.error('Order parsing error:', e)
@@ -412,7 +459,6 @@ GENERAL RULES:
       const subtotal = parts[3]?.trim()
       const tax = parts[4]?.trim()
       const total = parts[5]?.trim()
-
       const itemsRaw = (parts[6] || '').split('&&')
       const lineItemsHTML = itemsRaw.map((item: string) => {
         const p = item.split('|')
@@ -428,7 +474,6 @@ GENERAL RULES:
           <td align="right" style="padding:14px 16px;font-size:14px;font-weight:${isIncluded ? '400' : '700'};color:${isIncluded ? '#9ca3af' : '#0a0a0a'};border-bottom:1px solid #f3f4f6;">${isIncluded ? '—' : amount}</td>
         </tr>`
       }).join('')
-
       reply = reply.replace(/\[SEND_INVOICE:[^\]]+\]/g, '').trim()
 
       invoiceHTML = `<!DOCTYPE html>
