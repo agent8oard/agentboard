@@ -14,6 +14,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [openTask, setOpenTask] = useState<string | null>(null)
   const [deletingAgent, setDeletingAgent] = useState<string | null>(null)
+  const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -45,12 +48,14 @@ export default function DashboardPage() {
 
   const getProposalsForTask = (taskId: string) => proposals.filter(p => p.task_id === taskId)
 
-  const deleteBusinessAgent = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this agent? This cannot be undone.')) return
-    setDeletingAgent(id)
-    await supabase.from('business_agents').delete().eq('id', id)
-    setBusinessAgents(prev => prev.filter(a => a.id !== id))
-    setDeletingAgent(null)
+  const confirmDelete = async () => {
+    if (!deleteModal || deleteConfirmText !== 'delete') return
+    setDeleteLoading(true)
+    await supabase.from('business_agents').delete().eq('id', deleteModal.id)
+    setBusinessAgents(prev => prev.filter(a => a.id !== deleteModal.id))
+    setDeleteModal(null)
+    setDeleteConfirmText('')
+    setDeleteLoading(false)
   }
 
   if (loading) return (
@@ -65,6 +70,85 @@ export default function DashboardPage() {
   return (
     <>
       <Navbar active="dashboard" />
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)',
+            borderRadius: 20, width: '100%', maxWidth: 480, padding: '40px 40px',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#2a0a0a', border: '1px solid #4a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 24 }}>
+              🗑
+            </div>
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, marginBottom: 8 }}>
+              Delete agent
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 8 }}>
+              You are about to permanently delete
+            </p>
+            <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, color: 'var(--fg)' }}>
+              {deleteModal.name}
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 28, padding: '12px 16px', background: '#2a0a0a', borderRadius: 8, border: '1px solid #4a1a1a' }}>
+              This will permanently delete the agent, all its automations, memory, knowledge base, and conversation history. This action cannot be undone.
+            </p>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 8, letterSpacing: 0.5 }}>
+                Type <span style={{ color: '#f87171', fontWeight: 600 }}>delete</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="delete"
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && confirmDelete()}
+                style={{
+                  width: '100%', padding: '11px 16px',
+                  border: `1px solid ${deleteConfirmText === 'delete' ? '#4a1a1a' : 'var(--border2)'}`,
+                  borderRadius: 10, fontFamily: 'var(--mono)', fontSize: 14,
+                  background: 'var(--bg2)', color: '#f87171', outline: 'none',
+                  transition: 'border-color 0.15s',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteConfirmText !== 'delete' || deleteLoading}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600,
+                  background: deleteConfirmText === 'delete' ? '#7f1d1d' : 'var(--bg3)',
+                  color: deleteConfirmText === 'delete' ? '#fca5a5' : 'var(--muted)',
+                  opacity: deleteLoading ? 0.6 : 1,
+                  transition: 'all 0.15s',
+                }}>
+                {deleteLoading ? 'Deleting...' : 'Delete agent permanently'}
+              </button>
+              <button
+                onClick={() => { setDeleteModal(null); setDeleteConfirmText('') }}
+                style={{
+                  padding: '12px 20px', borderRadius: 10,
+                  border: '1px solid var(--border2)', background: 'transparent',
+                  color: 'var(--muted)', cursor: 'pointer',
+                  fontFamily: 'var(--mono)', fontSize: 13,
+                }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="page">
         <div style={{ marginBottom: 48 }}>
           <div className="section-label">account</div>
@@ -101,10 +185,10 @@ export default function DashboardPage() {
                       ⚙ manage
                     </Link>
                     <button
-                      onClick={() => deleteBusinessAgent(ba.id)}
+                      onClick={() => { setDeleteModal({ id: ba.id, name: ba.agent_name }); setDeleteConfirmText('') }}
                       disabled={deletingAgent === ba.id}
-                      style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '5px 10px', background: 'transparent', border: '1px solid #4a1a1a', borderRadius: 6, color: '#f87171', cursor: 'pointer', opacity: deletingAgent === ba.id ? 0.5 : 1 }}>
-                      {deletingAgent === ba.id ? '...' : '🗑 delete'}
+                      style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '5px 10px', background: 'transparent', border: '1px solid #4a1a1a', borderRadius: 6, color: '#f87171', cursor: 'pointer' }}>
+                      🗑 delete
                     </button>
                   </div>
                 </div>
