@@ -226,7 +226,7 @@ export default function OrdersClient({ agent, orders }: {
             ))}
           </div>
 
-          {/* Orders */}
+          {/* Orders table */}
           {filtered.length === 0 ? (
             <div className="card">
               <div className="empty-state">

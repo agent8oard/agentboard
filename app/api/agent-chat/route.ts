@@ -9,6 +9,8 @@ export async function POST(req: NextRequest) {
     const today = new Date()
     const dueDate = new Date(today)
     dueDate.setDate(dueDate.getDate() + 30)
+    const in14Days = new Date(today)
+    in14Days.setDate(in14Days.getDate() + 14)
     const formatDate = (d: Date) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
     const supabase = createClient(
@@ -123,9 +125,6 @@ ${upcomingEvents.map((e: Record<string, unknown>) => `- ${e.event_date} ${e.even
 </html>`
     }
 
-    const in14Days = new Date(today)
-    in14Days.setDate(in14Days.getDate() + 14)
-
     const systemPrompt = `You are ${agent.agent_name}, a professional AI business agent for ${agent.business_name}.
 Industry: ${agent.industry}
 Tone: ${agent.tone}
@@ -160,52 +159,59 @@ When user mentions a meeting, appointment, deadline or scheduled activity:
 CRITICAL: Every single service, phase, or scope item mentioned by the user MUST appear as its own separate line item on the invoice. Never combine multiple items into one line.
 
 PRICING RULES:
-- If user gives individual prices per item → use those exact prices per line
-- If user gives one total price for multiple items → show each item as its own line with "Included" in rate column and $0.00 in amount EXCEPT the last item which gets the full total
-- If user says "lump sum" or "one total" → still list every item separately, put full amount on first line, rest show "— Included" with $0.00
-- If user says "split evenly" → divide total by number of items
+- If user gives individual prices per item use those exact prices per line
+- If user gives one total price for multiple items show each item as its own line with Included in rate column and $0.00 in amount EXCEPT the last item which gets the full total
+- If user says lump sum or one total still list every item separately put full amount on first line rest show Included with $0.00
+- If user says split evenly divide total by number of items
 
 INVOICE TEXT FORMAT (show this in your response):
 INVOICE #INV-[YEAR]-[NUMBER]
 Bill To: [client name]
 
-[Item 1] | 1 | $[rate or "Included"] | $[amount or 0.00]
+[Item 1] | 1 | $[rate] | $[amount]
 [Item 2] | 1 | Included | $0.00
-...
 
 Subtotal: $[total before tax]
 Tax (10%): $[tax]
 Total Due: $[grand total]
 
-INVOICE MARKER FORMAT — items separated by &&:
+INVOICE MARKER FORMAT items separated by &&:
 [SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00&&...]
 
 ━━━ ORDER RECORD RULES ━━━
 
-When user wants to create an order record, track an order, or record a sale:
+When user wants to create an order record, track an order, or record a sale use this EXACT format:
 
 ORDER TEXT FORMAT (show in response):
 ORDER #ORD-[YEAR]-[NUMBER]
 Client: [name]
 Status: pending
 
-[Item description] | Qty: [qty] | Unit price: $[price] | Line total: $[amount]
-Delivery: $[amount] (if applicable)
+[Item] | Qty: [n] | Unit: $[price] | Line total: $[amount]
+Delivery: $[amount]
 
-Subtotal: $[subtotal]
-Tax (10%): $[tax]
-Total: $[total]
-Due: [due date]
+Subtotal: $[x]
+Tax: $[x]
+Delivery: $[x]
+Total: $[x]
+Due: [date]
 
-ORDER MARKER:
-[CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:item1desc|qty|unitprice|linetotal&&item2desc|qty|unitprice|linetotal:subtotal:tax:delivery:discount:grandtotal]
+ORDER MARKER - use EXACTLY this format with no extra colons in the items section:
+[CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:itemdesc1|qty1|price1|total1&&itemdesc2|qty2|price2|total2:subtotal:tax:delivery:discount:grandtotal]
 
-EXAMPLE — "Order for David Chen, 5 oak shelves at $85 each, $40 delivery, due in 14 days":
+EXAMPLE for "5 oak shelves at $85 each plus $40 delivery for David Chen due in 14 days":
 [CREATE_ORDER:David Chen:::pending:${in14Days.toISOString().split('T')[0]}::5x Custom Oak Shelves|5|85|425&&Delivery Charge|1|40|40:425:0:40:0:465]
+
+RULES:
+- Use && to separate line items only
+- Use | to separate item fields
+- Last 5 values after items are always: subtotal:tax:delivery:discount:grandtotal
+- grandtotal = subtotal + tax + delivery - discount
+- Never put colons inside item descriptions
 
 After creating order ask: "Would you like me to also generate an invoice for this order?"
 
-CONTRACT FORMAT:
+━━━ CONTRACT FORMAT ━━━
 # Parties
 # Services
 # Terms
@@ -214,7 +220,7 @@ CONTRACT FORMAT:
 # Signatures
 [CREATE_DOCUMENT:CONTRACT:title|party1|party2]
 
-PROPOSAL FORMAT:
+━━━ PROPOSAL FORMAT ━━━
 # Executive Summary
 # Scope of Work
 # Timeline
@@ -222,7 +228,7 @@ PROPOSAL FORMAT:
 # Next Steps
 [CREATE_DOCUMENT:PROPOSAL:title|clientName|date]
 
-REPORT FORMAT:
+━━━ REPORT FORMAT ━━━
 # Overview
 # Key Metrics
 # Highlights
@@ -230,14 +236,14 @@ REPORT FORMAT:
 # Recommendations
 [CREATE_DOCUMENT:REPORT:title|period|date]
 
-MEETING AGENDA FORMAT:
+━━━ MEETING AGENDA FORMAT ━━━
 # Meeting Details
 # Attendees
 # Agenda Items
 # Action Items
 [CREATE_DOCUMENT:MEETING AGENDA:title|organizer|date]
 
-JOB LISTING FORMAT:
+━━━ JOB LISTING FORMAT ━━━
 # About the Role
 # Responsibilities
 # Requirements
@@ -246,13 +252,13 @@ JOB LISTING FORMAT:
 [CREATE_DOCUMENT:JOB LISTING:title|company|date]
 
 EMAIL FORMAT:
-Keep emails SHORT — max 5 lines.
+Keep emails SHORT max 5 lines.
 [SEND_EMAIL:email:subject]
 
 GENERAL RULES:
 - Be brief and professional
-- No markdown bold (**)
-- Use # for headings, - for bullets
+- No markdown bold
+- Use # for headings - for bullets
 - Always confirm in one line what you did`
 
     const conversationHistory = history.slice(-10).map((msg: { role: string; content: string }) => ({
@@ -286,51 +292,67 @@ GENERAL RULES:
     // Handle order
     const orderMatch = reply.match(/\[CREATE_ORDER:([^\]]+)\]/)
     if (orderMatch) {
-      const parts = orderMatch[1].split(':')
-      const clientName = parts[0]?.trim()
-      const clientEmail = parts[1]?.trim()
-      const clientPhone = parts[2]?.trim()
-      const status = parts[3]?.trim() || 'pending'
-      const orderDueDate = parts[4]?.trim()
-      const notes = parts[5]?.trim()
-      const itemsRaw = parts[6]?.split('&&') || []
-      const subtotal = parseFloat(parts[7]) || 0
-      const tax = parseFloat(parts[8]) || 0
-      const delivery = parseFloat(parts[9]) || 0
-      const discount = parseFloat(parts[10]) || 0
-      const total = parseFloat(parts[11]) || 0
+      try {
+        const raw = orderMatch[1]
+        const parts = raw.split(':')
 
-      const items = itemsRaw.map((item: string) => {
-        const p = item.split('|')
-        return {
-          description: p[0]?.trim(),
-          quantity: parseFloat(p[1]) || 1,
-          unit_price: parseFloat(p[2]) || 0,
-          total: parseFloat(p[3]) || 0,
-        }
-      })
+        const clientName = parts[0]?.trim() || ''
+        const clientEmail = parts[1]?.trim() || ''
+        const clientPhone = parts[2]?.trim() || ''
+        const status = parts[3]?.trim() || 'pending'
+        const orderDueDate = parts[4]?.trim() || ''
+        const notes = parts[5]?.trim() || ''
 
-      const year = new Date().getFullYear()
-      const orderNumber = `ORD-${year}-${Math.floor(Math.random() * 900) + 100}`
+        // Remainder from index 6 onwards
+        const remainder = parts.slice(6).join(':')
+        const remainderParts = remainder.split(':')
 
-      const { data: order } = await supabase.from('orders').insert({
-        business_agent_id: agent.id,
-        order_number: orderNumber,
-        client_name: clientName,
-        client_email: clientEmail || null,
-        client_phone: clientPhone || null,
-        status,
-        items,
-        subtotal,
-        tax,
-        delivery,
-        discount,
-        total,
-        notes: notes || null,
-        due_date: orderDueDate || null,
-      }).select().single()
+        // Last 5 are subtotal:tax:delivery:discount:grandtotal
+        const grandtotal = parseFloat(remainderParts[remainderParts.length - 1]) || 0
+        const discount = parseFloat(remainderParts[remainderParts.length - 2]) || 0
+        const delivery = parseFloat(remainderParts[remainderParts.length - 3]) || 0
+        const tax = parseFloat(remainderParts[remainderParts.length - 4]) || 0
+        const subtotal = parseFloat(remainderParts[remainderParts.length - 5]) || 0
 
-      if (order) {
+        // Items are everything before the last 5 parts
+        const itemsStr = remainderParts.slice(0, remainderParts.length - 5).join(':')
+        const itemsRaw = itemsStr.split('&&')
+
+        const items = itemsRaw
+          .filter((item: string) => item.trim())
+          .map((item: string) => {
+            const p = item.split('|')
+            return {
+              description: p[0]?.trim() || '',
+              quantity: parseFloat(p[1]) || 1,
+              unit_price: parseFloat(p[2]) || 0,
+              total: parseFloat(p[3]) || 0,
+            }
+          })
+
+        const year = new Date().getFullYear()
+        const orderNumber = `ORD-${year}-${Math.floor(Math.random() * 900) + 100}`
+
+        await supabase.from('orders').insert({
+          business_agent_id: agent.id,
+          order_number: orderNumber,
+          client_name: clientName,
+          client_email: clientEmail || null,
+          client_phone: clientPhone || null,
+          status,
+          items,
+          subtotal,
+          tax,
+          delivery,
+          discount,
+          total: grandtotal,
+          notes: notes || null,
+          due_date: orderDueDate || null,
+        })
+
+        reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
+      } catch (e) {
+        console.error('Order parsing error:', e)
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       }
     }
