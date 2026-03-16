@@ -198,14 +198,13 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
   const today = new Date()
   const upcomingEvents = calendarEvents.filter(e => e.event_date >= today.toISOString().split('T')[0]).slice(0, 5)
 
-  // SVG Icons
+  // Icons
   const IconManage = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   const IconCalendar = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+  const IconAnalytics = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
   const IconChat = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   const IconGrid = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
   const IconBack = <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-  const IconEmail = <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
-  const IconDoc = <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
   const IconPrint = <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
   const IconView = <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
   const IconEvent = <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -238,7 +237,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--fg)', color: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--serif)', fontSize: 22 }}>
               {(agent.agent_name as string)?.[0]}
@@ -251,9 +250,12 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => router.push(`/agent/${agent.id as string}/manage`)} className="btn btn-outline" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               {IconManage} Manage
+            </button>
+            <button onClick={() => router.push(`/agent/${agent.id as string}/analytics`)} className="btn btn-outline" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {IconAnalytics} Analytics
             </button>
             <button onClick={() => setView(view === 'calendar' ? 'home' : 'calendar')} className="btn btn-outline" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, background: view === 'calendar' ? 'var(--fg)' : 'transparent', color: view === 'calendar' ? 'var(--bg)' : 'var(--fg)' }}>
               {IconCalendar} Calendar {upcomingEvents.length > 0 && `(${upcomingEvents.length})`}
@@ -464,7 +466,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
 
                     {msg.calendarEvent && (
                       <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ color: '#3b82f6' }}>{IconEvent}</div>
+                        <div style={{ color: '#3b82f6', flexShrink: 0 }}>{IconEvent}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#3b82f6', marginBottom: 2 }}>Added to calendar</div>
                           <div style={{ fontSize: 12, fontWeight: 500 }}>{(msg.calendarEvent as Record<string, unknown>).title as string}</div>
@@ -473,7 +475,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                             {(msg.calendarEvent as Record<string, unknown>).event_time && ` · ${formatEventTime((msg.calendarEvent as Record<string, unknown>).event_time as string)}`}
                           </div>
                         </div>
-                        <button onClick={() => setView('calendar')} style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '4px 8px', background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, color: '#3b82f6', cursor: 'pointer' }}>
+                        <button onClick={() => setView('calendar')} style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '4px 8px', background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, color: '#3b82f6', cursor: 'pointer', flexShrink: 0 }}>
                           View →
                         </button>
                       </div>
