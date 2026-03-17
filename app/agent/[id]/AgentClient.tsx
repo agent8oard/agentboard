@@ -40,6 +40,7 @@ const QUICK_ACTIONS = [
   { label: 'Meeting agenda', prompt: 'Create a meeting agenda for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
   { label: 'Welcome message', prompt: 'Write a welcome message for new customers: ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> },
   { label: 'Create order', prompt: 'Create an order record for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg> },
+  { label: 'Create quote', prompt: 'Create a quote for ', icon: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg> },
 ]
 
 const EVENT_COLORS: Record<string, string> = {
@@ -61,6 +62,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
   const [previewDoc, setPreviewDoc] = useState<{ html: string; type: string } | null>(null)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [calendarDate, setCalendarDate] = useState(new Date())
+  const [portalCopied, setPortalCopied] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -176,6 +178,12 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
     setCalendarEvents(prev => prev.filter(e => e.id !== id))
   }
 
+  const copyPortalLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/portal/${agent.id as string}`)
+    setPortalCopied(true)
+    setTimeout(() => setPortalCopied(false), 2000)
+  }
+
   const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
   const getFirstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay()
   const getEventsForDay = (day: number) => {
@@ -202,6 +210,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
     <div className="app-layout">
       <Sidebar />
 
+      {/* Document preview modal */}
       {previewDoc && (
         <div className="modal-overlay">
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, width: '100%', maxWidth: 740, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -263,6 +272,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               { label: 'Analytics', path: 'analytics' },
               { label: 'Automations', path: 'automations' },
               { label: 'Orders', path: 'orders' },
+              { label: 'Quotes', path: 'quotes' },
             ].map(btn => (
               <button
                 key={btn.path}
@@ -307,15 +317,55 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    if (messages.length === 0) setMessages([{ role: 'assistant', content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`, timestamp: new Date().toISOString() }])
-                    setView('chat')
-                  }}
-                  className="btn btn-accent"
-                  style={{ height: 44, padding: '0 28px', fontSize: 15, fontWeight: 600, fontFamily: 'var(--sidebar-font)' }}>
-                  Start chatting →
-                </button>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => {
+                      if (messages.length === 0) setMessages([{
+                        role: 'assistant',
+                        content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`,
+                        timestamp: new Date().toISOString(),
+                      }])
+                      setView('chat')
+                    }}
+                    className="btn btn-accent"
+                    style={{ height: 44, padding: '0 28px', fontSize: 15, fontWeight: 600, fontFamily: 'var(--sidebar-font)' }}>
+                    Start chatting →
+                  </button>
+                  
+                    href={`/portal/${agent.id as string}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ height: 44, padding: '0 20px', fontSize: 14, fontFamily: 'var(--sidebar-font)', display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Customer portal
+                  </a>
+                  <button
+                    onClick={copyPortalLink}
+                    className="btn btn-outline"
+                    style={{ height: 44, padding: '0 20px', fontSize: 14, fontFamily: 'var(--sidebar-font)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {portalCopied ? (
+                      <>
+                        <svg width="14" height="14" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+                        <span style={{ color: 'var(--accent)' }}>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy portal link
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Stats */}
@@ -340,6 +390,49 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Portal info card */}
+              <div style={{
+                background: 'linear-gradient(135deg, #0a1200 0%, #0d1a00 100%)',
+                border: '1px solid rgba(200,241,53,0.15)',
+                borderRadius: 12, padding: '24px 28px',
+                marginBottom: 36,
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', flexWrap: 'wrap', gap: 16,
+              }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 14, fontWeight: 600, color: 'var(--accent)', marginBottom: 6 }}>
+                    Customer Portal
+                  </div>
+                  <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 13, color: 'var(--fg3)', marginBottom: 8 }}>
+                    Share this link with your customers so they can chat with your AI agent directly.
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)', background: 'var(--bg3)', padding: '6px 12px', borderRadius: 6, display: 'inline-block', border: '1px solid var(--border2)' }}>
+                    {typeof window !== 'undefined' ? window.location.origin : 'https://agentboard-five.vercel.app'}/portal/{agent.id as string}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  
+                    href={`/portal/${agent.id as string}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-sm"
+                    style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', borderColor: 'rgba(200,241,53,0.3)', color: 'var(--accent)' }}>
+                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Preview portal
+                  </a>
+                  <button
+                    onClick={copyPortalLink}
+                    className="btn btn-accent btn-sm"
+                    style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12 }}>
+                    {portalCopied ? '✓ Copied!' : 'Copy link'}
+                  </button>
+                </div>
               </div>
 
               {/* Upcoming events */}
@@ -370,7 +463,9 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
 
               {/* Quick actions */}
               <div style={{ marginBottom: 36 }}>
-                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>Quick actions</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>
+                  Quick actions
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                   {QUICK_ACTIONS.map((action, i) => (
                     <button key={i} onClick={() => startAction(action)}
@@ -387,7 +482,9 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               {/* Recent activity */}
               {recentRuns.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>Recent activity</div>
+                  <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>
+                    Recent activity
+                  </div>
                   <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     {recentRuns.map((run, i) => (
                       <div key={i}
