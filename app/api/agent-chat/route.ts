@@ -6,23 +6,35 @@ import { sanitize } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, agent, history } = await req.json()
+    const body = await req.json()
+    const { agent, history } = body
+    const message = body.message
 
     if (!message || !agent?.id) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
     // Rate limiting
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
-    const allowed = rateLimit(ip, 20, 60000)
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const allowed = await rateLimit(ip, 20, 60)
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
-    // Sanitize input
+    // Sanitize message
     const cleanMessage = sanitize(message)
     if (!cleanMessage) {
       return NextResponse.json({ error: 'Invalid message' }, { status: 400 })
+    }
+
+    // Sanitize agent fields
+    const safeAgent = {
+      id: String(agent.id).trim(),
+      agent_name: sanitize(String(agent.agent_name || ''), 100),
+      business_name: sanitize(String(agent.business_name || ''), 100),
+      industry: sanitize(String(agent.industry || ''), 100),
+      tone: sanitize(String(agent.tone || ''), 100),
+      system_prompt: sanitize(String(agent.system_prompt || ''), 1000),
     }
 
     const today = new Date()
@@ -41,7 +53,7 @@ export async function POST(req: NextRequest) {
     const { data: agentCheck } = await supabase
       .from('business_agents')
       .select('id, user_id')
-      .eq('id', agent.id)
+      .eq('id', safeAgent.id)
       .single()
 
     if (!agentCheck) {
@@ -49,12 +61,12 @@ export async function POST(req: NextRequest) {
     }
 
     const [{ data: memories }, { data: knowledge }, { data: contacts }, { data: upcomingEvents }, { data: recentOrders }, { data: recentDocs }] = await Promise.all([
-      supabase.from('agent_memory').select('*').eq('business_agent_id', agent.id).order('updated_at', { ascending: false }),
-      supabase.from('knowledge_base').select('*').eq('business_agent_id', agent.id),
-      supabase.from('contacts').select('*').eq('business_agent_id', agent.id),
-      supabase.from('calendar_events').select('*').eq('business_agent_id', agent.id).gte('event_date', today.toISOString().split('T')[0]).order('event_date', { ascending: true }).limit(10),
-      supabase.from('orders').select('*').eq('business_agent_id', agent.id).order('created_at', { ascending: false }).limit(5),
-      supabase.from('documents').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('agent_memory').select('*').eq('business_agent_id', safeAgent.id).order('updated_at', { ascending: false }),
+      supabase.from('knowledge_base').select('*').eq('business_agent_id', safeAgent.id),
+      supabase.from('contacts').select('*').eq('business_agent_id', safeAgent.id),
+      supabase.from('calendar_events').select('*').eq('business_agent_id', safeAgent.id).gte('event_date', today.toISOString().split('T')[0]).order('event_date', { ascending: true }).limit(10),
+      supabase.from('orders').select('*').eq('business_agent_id', safeAgent.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('documents').select('*').eq('agent_id', safeAgent.id).order('created_at', { ascending: false }).limit(5),
     ])
 
     const memoryContext = memories?.length ? `
@@ -96,7 +108,7 @@ ${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as
         <tr>
           <td valign="top">
             <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">FROM</div>
-            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${agent.business_name}</div>
+            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${safeAgent.business_name}</div>
           </td>
           <td align="right" valign="top">
             <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">DOCUMENT</div>
@@ -116,7 +128,7 @@ ${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as
           <td><div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">DATE</div><div style="color:#ffffff;font-size:13px;font-weight:500;">${formatDate(today)}</div></td>
           ${metadata?.party1 ? `<td><div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">PARTY 1</div><div style="color:#ffffff;font-size:13px;font-weight:500;">${metadata.party1}</div></td>` : ''}
           ${metadata?.party2 ? `<td><div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">PARTY 2</div><div style="color:#c8f135;font-size:13px;font-weight:600;">${metadata.party2}</div></td>` : ''}
-          <td align="right"><div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">PREPARED BY</div><div style="color:#ffffff;font-size:13px;font-weight:500;">${agent.agent_name}</div></td>
+          <td align="right"><div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:5px;">PREPARED BY</div><div style="color:#ffffff;font-size:13px;font-weight:500;">${safeAgent.agent_name}</div></td>
         </tr>
       </table>
     </td>
@@ -137,7 +149,7 @@ ${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as
         <tr>
           <td width="45%" style="padding:20px 0 0;">
             <div style="border-top:2px solid #0a0a0a;padding-top:10px;">
-              <div style="font-size:12px;color:#6b7280;font-family:monospace;">SIGNATURE — ${agent.business_name}</div>
+              <div style="font-size:12px;color:#6b7280;font-family:monospace;">SIGNATURE — ${safeAgent.business_name}</div>
               <div style="font-size:13px;color:#0a0a0a;margin-top:4px;font-weight:600;">Authorised Representative</div>
               <div style="margin-top:24px;font-size:12px;color:#9ca3af;">Date: _______________</div>
             </div>
@@ -152,7 +164,7 @@ ${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as
     <td style="background:#f9fafb;padding:24px 48px;border-top:2px solid #0a0a0a;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${agent.business_name}</div><div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${agent.agent_name} · ${formatDate(today)}</div></td>
+          <td><div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${safeAgent.business_name}</div><div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${safeAgent.agent_name} · ${formatDate(today)}</div></td>
           <td align="right"><div style="font-size:10px;color:#9ca3af;font-family:monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">DOCUMENT TYPE</div><div style="font-size:16px;font-weight:800;color:#0a0a0a;">${type}</div></td>
         </tr>
       </table>
@@ -165,10 +177,10 @@ ${recentDocs.map((d: Record<string, unknown>) => `- ${d.type} | ${(d.metadata as
 </html>`
     }
 
-    const systemPrompt = `You are ${agent.agent_name}, the AI business assistant for ${agent.business_name}.
-Industry: ${agent.industry}
-Tone: ${agent.tone}
-${agent.system_prompt ? `Business context: ${agent.system_prompt}` : ''}
+    const systemPrompt = `You are ${safeAgent.agent_name}, the AI business assistant for ${safeAgent.business_name}.
+Industry: ${safeAgent.industry}
+Tone: ${safeAgent.tone}
+${safeAgent.system_prompt ? `Business context: ${safeAgent.system_prompt}` : ''}
 
 TODAY: ${formatDate(today)}
 
@@ -181,7 +193,7 @@ ${docsContext}
 
 ━━━ WHO YOU ARE ━━━
 
-You are NOT a generic AI. You are the dedicated assistant for ${agent.business_name}.
+You are NOT a generic AI. You are the dedicated assistant for ${safeAgent.business_name}.
 - You know this business deeply — its clients, pricing, history, and preferences
 - You speak in the voice of the business — professional, direct, on-brand
 - When a client name appears in CONTACTS, use what you know about them
@@ -209,8 +221,8 @@ Example: "Schedule inspection for Jane on April 3 at 10:30 AM, generate invoice 
 → You MUST: add calendar event + create invoice + send email — all in one response
 
 BUSINESS VOICE:
-- Match the tone: ${agent.tone}
-- Use industry-appropriate language for ${agent.industry}
+- Match the tone: ${safeAgent.tone}
+- Use industry-appropriate language for ${safeAgent.industry}
 - Reference the business name naturally where appropriate
 - Sound like a knowledgeable team member, not a chatbot
 
@@ -359,7 +371,7 @@ End with a one-line summary of everything completed.`
         })
         const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
         await supabase.from('quotes').insert({
-          business_agent_id: agent.id,
+          business_agent_id: safeAgent.id,
           quote_number: quoteNumber,
           client_name: clientName,
           client_email: clientEmail || null,
@@ -408,7 +420,7 @@ End with a one-line summary of everything completed.`
         })
         const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
         await supabase.from('orders').insert({
-          business_agent_id: agent.id,
+          business_agent_id: safeAgent.id,
           order_number: orderNumber,
           client_name: clientName,
           client_email: clientEmail || null,
@@ -429,7 +441,7 @@ End with a one-line summary of everything completed.`
     const memoryMatches = [...reply.matchAll(/\[REMEMBER:([^:]+):([^:]+):([^\]]+)\]/g)]
     for (const match of memoryMatches) {
       await supabase.from('agent_memory').upsert({
-        business_agent_id: agent.id,
+        business_agent_id: safeAgent.id,
         category: match[1].trim(),
         key: match[2].trim(),
         value: match[3].trim(),
@@ -442,7 +454,7 @@ End with a one-line summary of everything completed.`
     const contactMatches = [...reply.matchAll(/\[ADD_CONTACT:([^:]+):([^:]*):([^:]*):([^\]]*)\]/g)]
     for (const match of contactMatches) {
       await supabase.from('contacts').insert({
-        business_agent_id: agent.id,
+        business_agent_id: safeAgent.id,
         name: match[1].trim(),
         email: match[2].trim(),
         company: match[3].trim(),
@@ -455,7 +467,7 @@ End with a one-line summary of everything completed.`
     const eventMatches = [...reply.matchAll(/\[ADD_EVENT:([^:]*):([^:]*):([^:]*):([^:]*):([^:]*):([^:]*):([^\]]*)\]/g)]
     for (const match of eventMatches) {
       const eventData = {
-        business_agent_id: agent.id,
+        business_agent_id: safeAgent.id,
         title: match[1].trim(),
         event_date: match[2].trim(),
         event_time: match[3].trim() || null,
@@ -511,7 +523,7 @@ End with a one-line summary of everything completed.`
         <tr>
           <td valign="top">
             <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">FROM</div>
-            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${agent.business_name}</div>
+            <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${safeAgent.business_name}</div>
           </td>
           <td align="right" valign="top">
             <div style="color:#9ca3af;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">INVOICE</div>
@@ -572,7 +584,7 @@ End with a one-line summary of everything completed.`
         <tr>
           <td style="background:#0a0a0a;border-radius:10px;padding:20px 24px;">
             <div style="color:#6b7280;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-family:monospace;margin-bottom:8px;">PAYMENT INSTRUCTIONS</div>
-            <div style="color:#ffffff;font-size:13px;line-height:1.6;">Please remit payment by ${formatDate(dueDate)}. Contact ${agent.business_name} for payment enquiries.</div>
+            <div style="color:#ffffff;font-size:13px;line-height:1.6;">Please remit payment by ${formatDate(dueDate)}. Contact ${safeAgent.business_name} for payment enquiries.</div>
           </td>
         </tr>
       </table>
@@ -582,7 +594,7 @@ End with a one-line summary of everything completed.`
     <td style="background:#f9fafb;padding:24px 48px;border-top:2px solid #0a0a0a;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${agent.business_name}</div><div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${agent.agent_name}</div></td>
+          <td><div style="font-size:14px;font-weight:700;color:#0a0a0a;margin-bottom:3px;">${safeAgent.business_name}</div><div style="font-size:11px;color:#9ca3af;font-family:monospace;">Generated by ${safeAgent.agent_name}</div></td>
           <td align="right"><div style="font-size:10px;color:#9ca3af;font-family:monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">AMOUNT DUE</div><div style="font-size:26px;font-weight:800;color:#0a0a0a;">$${total}</div></td>
         </tr>
       </table>
@@ -596,7 +608,7 @@ End with a one-line summary of everything completed.`
 
       try {
         const { data: doc } = await supabase.from('documents').insert({
-          agent_id: agent.id,
+          agent_id: safeAgent.id,
           type: 'INVOICE',
           content: invoiceHTML,
           metadata: { invoiceNumber, clientName, subtotal, tax, total, recipientEmail, invoiceHTML },
@@ -609,7 +621,7 @@ End with a one-line summary of everything completed.`
         const { error } = await resend.emails.send({
           from: 'AgentBoard <onboarding@resend.dev>',
           to: recipientEmail,
-          subject: `Invoice ${invoiceNumber} from ${agent.business_name}`,
+          subject: `Invoice ${invoiceNumber} from ${safeAgent.business_name}`,
           html: invoiceHTML,
         })
         if (!error) { emailSent = true; reply += `\n\nInvoice ${invoiceNumber} sent to ${recipientEmail}.` }
@@ -634,7 +646,7 @@ End with a one-line summary of everything completed.`
     <td style="background:#0a0a0a;padding:28px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div></td>
+          <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${safeAgent.business_name}</div></td>
           <td align="right"><span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">Message</span></td>
         </tr>
       </table>
@@ -645,8 +657,8 @@ End with a one-line summary of everything completed.`
     <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${agent.agent_name}</td>
-          <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">${agent.business_name}</td>
+          <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${safeAgent.agent_name}</td>
+          <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">${safeAgent.business_name}</td>
         </tr>
       </table>
     </td>
@@ -678,7 +690,7 @@ End with a one-line summary of everything completed.`
 
       const metadata: Record<string, unknown> = {
         title: params[0]?.trim(),
-        party1: params[1]?.trim() || agent.business_name,
+        party1: params[1]?.trim() || safeAgent.business_name,
         party2: params[2]?.trim(),
         date: params[3]?.trim() || formatDate(today),
       }
@@ -687,7 +699,7 @@ End with a one-line summary of everything completed.`
 
       try {
         const { data: doc } = await supabase.from('documents').insert({
-          agent_id: agent.id,
+          agent_id: safeAgent.id,
           type: documentType,
           content: docHTML,
           metadata: { ...metadata, invoiceHTML: docHTML },
