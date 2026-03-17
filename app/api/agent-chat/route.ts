@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rateLimit'
+import { sanitize } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +10,19 @@ export async function POST(req: NextRequest) {
 
     if (!message || !agent?.id) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    // Rate limiting
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
+    const allowed = rateLimit(ip, 20, 60000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
+
+    // Sanitize input
+    const cleanMessage = sanitize(message)
+    if (!cleanMessage) {
+      return NextResponse.json({ error: 'Invalid message' }, { status: 400 })
     }
 
     const today = new Date()
@@ -299,7 +314,7 @@ End with a one-line summary of everything completed.`
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         system: systemPrompt,
-        messages: [...conversationHistory, { role: 'user', content: message }],
+        messages: [...conversationHistory, { role: 'user', content: cleanMessage }],
       }),
     })
 
@@ -335,7 +350,12 @@ End with a one-line summary of everything completed.`
         const itemsStr = remainderParts.slice(0, remainderParts.length - 4).join(':')
         const items = itemsStr.split('&&').filter((i: string) => i.trim()).map((item: string) => {
           const p = item.split('|')
-          return { description: p[0]?.trim() || '', quantity: parseFloat(p[1]) || 1, unit_price: parseFloat(p[2]) || 0, total: parseFloat(p[3]) || 0 }
+          return {
+            description: p[0]?.trim() || '',
+            quantity: parseFloat(p[1]) || 1,
+            unit_price: parseFloat(p[2]) || 0,
+            total: parseFloat(p[3]) || 0,
+          }
         })
         const quoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
         await supabase.from('quotes').insert({
@@ -379,7 +399,12 @@ End with a one-line summary of everything completed.`
         const itemsStr = remainderParts.slice(0, remainderParts.length - 5).join(':')
         const items = itemsStr.split('&&').filter((i: string) => i.trim()).map((item: string) => {
           const p = item.split('|')
-          return { description: p[0]?.trim() || '', quantity: parseFloat(p[1]) || 1, unit_price: parseFloat(p[2]) || 0, total: parseFloat(p[3]) || 0 }
+          return {
+            description: p[0]?.trim() || '',
+            quantity: parseFloat(p[1]) || 1,
+            unit_price: parseFloat(p[2]) || 0,
+            total: parseFloat(p[3]) || 0,
+          }
         })
         const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
         await supabase.from('orders').insert({
