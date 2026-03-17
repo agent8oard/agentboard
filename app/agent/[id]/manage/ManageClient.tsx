@@ -100,17 +100,21 @@ export default function ManageClient({
   const saveKb = async () => {
     if (!newKb.title || !newKb.content) { showMsg('Please fill in title and content.', 'error'); return }
     setSaving(true)
-    const { data, error } = await supabase.from('knowledge_base').insert({
-      business_agent_id: agent.id,
-      title: newKb.title.trim(),
-      content: newKb.content.trim(),
-      type: newKb.type,
-    }).select().single()
-    if (error) {
-      console.error('Knowledge save error:', error)
-      showMsg(`Failed to save: ${error.message}`, 'error')
-    } else if (data) {
-      setKb(prev => [data, ...prev])
+    const res = await fetch('/api/knowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        business_agent_id: agent.id,
+        title: newKb.title.trim(),
+        content: newKb.content.trim(),
+        type: newKb.type,
+      }),
+    })
+    const json = await res.json()
+    if (json.error) {
+      showMsg(`Failed to save: ${json.error}`, 'error')
+    } else if (json.data) {
+      setKb(prev => [json.data, ...prev])
       setNewKb({ title: '', content: '', type: 'general' })
       showMsg('Knowledge saved!')
     }
@@ -118,9 +122,14 @@ export default function ManageClient({
   }
 
   const deleteKb = async (id: string) => {
-    const { error } = await supabase.from('knowledge_base').delete().eq('id', id)
-    if (!error) setKb(prev => prev.filter(k => k.id !== id))
-    else showMsg('Failed to delete.', 'error')
+    const res = await fetch('/api/knowledge', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    const json = await res.json()
+    if (json.error) showMsg(`Failed to delete: ${json.error}`, 'error')
+    else setKb(prev => prev.filter(k => k.id !== id))
   }
 
   const saveContact = async () => {
@@ -194,14 +203,11 @@ export default function ManageClient({
             ))}
           </div>
 
-          {/* KNOWLEDGE BASE */}
           {activeTab === 'knowledge' && (
             <div>
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
                 <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Add knowledge</div>
-                <p style={{ fontSize: 13, color: 'var(--fg3)', marginBottom: 16, fontFamily: 'var(--sidebar-font)' }}>
-                  Add pricing, FAQs, policies, services — anything your agent should know about your business.
-                </p>
+                <p style={{ fontSize: 13, color: 'var(--fg3)', marginBottom: 16, fontFamily: 'var(--sidebar-font)' }}>Add pricing, FAQs, policies, services — anything your agent should know about your business.</p>
                 <div style={{ background: 'var(--bg3)', border: '2px dashed var(--border2)', borderRadius: 10, padding: '16px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2, fontFamily: 'var(--sidebar-font)' }}>Upload a file</div>
@@ -233,7 +239,8 @@ export default function ManageClient({
                     placeholder="e.g. Initial consultation is $250 for 30 minutes. First-time clients receive a free 15-minute phone consultation."
                     value={newKb.content} onChange={e => setNewKb({ ...newKb, content: e.target.value })} />
                 </div>
-                <button onClick={saveKb} disabled={saving || !newKb.title || !newKb.content} className="btn btn-accent" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 600, opacity: (!newKb.title || !newKb.content) ? 0.5 : 1 }}>
+                <button onClick={saveKb} disabled={saving || !newKb.title || !newKb.content} className="btn btn-accent"
+                  style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 600, opacity: (!newKb.title || !newKb.content) ? 0.5 : 1 }}>
                   {saving ? 'Saving...' : 'Add to Knowledge Base →'}
                 </button>
               </div>
@@ -267,7 +274,6 @@ export default function ManageClient({
             </div>
           )}
 
-          {/* CONTACTS */}
           {activeTab === 'contacts' && (
             <div>
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
@@ -344,7 +350,6 @@ export default function ManageClient({
             </div>
           )}
 
-          {/* MEMORY */}
           {activeTab === 'memory' && (
             <div>
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
@@ -374,7 +379,6 @@ export default function ManageClient({
             </div>
           )}
 
-          {/* TEAM */}
           {activeTab === 'team' && (
             <div>
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
