@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
     const now = new Date().toISOString()
@@ -26,17 +26,22 @@ export async function GET(req: NextRequest) {
 
     const results = []
     for (const automation of dueAutomations) {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/run-automation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ automationId: automation.id }),
-      })
-      const data = await res.json()
-      results.push({ id: automation.id, name: automation.name, success: data.success })
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/run-automation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ automationId: automation.id }),
+        })
+        const data = await res.json()
+        results.push({ id: automation.id, name: automation.name, success: data.success })
+      } catch (e) {
+        results.push({ id: automation.id, name: automation.name, success: false })
+      }
     }
 
     return NextResponse.json({ message: 'Automations run', count: results.length, results })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('Check automations error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

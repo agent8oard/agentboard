@@ -6,6 +6,10 @@ export async function POST(req: NextRequest) {
   try {
     const { message, agent, history } = await req.json()
 
+    if (!message || !agent?.id) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
     const today = new Date()
     const dueDate = new Date(today)
     dueDate.setDate(dueDate.getDate() + 30)
@@ -15,8 +19,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+
+    // Verify agent exists
+    const { data: agentCheck } = await supabase
+      .from('business_agents')
+      .select('id, user_id')
+      .eq('id', agent.id)
+      .single()
+
+    if (!agentCheck) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
 
     const [{ data: memories }, { data: knowledge }, { data: contacts }, { data: upcomingEvents }, { data: recentOrders }, { data: recentDocs }] = await Promise.all([
       supabase.from('agent_memory').select('*').eq('business_agent_id', agent.id).order('updated_at', { ascending: false }),
@@ -175,27 +190,25 @@ When given a complex task with multiple steps, execute ALL steps automatically:
 3. Use the appropriate markers for each action
 4. Give a brief summary at the end listing what was completed
 
-Example: "Schedule inspection for Jane on April 3, generate invoice for $180, email her confirmation"
-→ You MUST: add calendar event + create invoice + send email — all in one response, not asking "should I also..."
+Example: "Schedule inspection for Jane on April 3 at 10:30 AM, generate invoice for $180, email her confirmation"
+→ You MUST: add calendar event + create invoice + send email — all in one response
 
 BUSINESS VOICE:
-- Match the tone set in agent settings (${agent.tone})
+- Match the tone: ${agent.tone}
 - Use industry-appropriate language for ${agent.industry}
 - Reference the business name naturally where appropriate
 - Sound like a knowledgeable team member, not a chatbot
 
-━━━ MEMORY INSTRUCTIONS ━━━
-Save important info automatically:
+━━━ MEMORY ━━━
 [REMEMBER:category:key:value]
 Categories: customer, pricing, product, preference, general
 
-━━━ CONTACT INSTRUCTIONS ━━━
-Auto-save new contacts:
+━━━ CONTACTS ━━━
 [ADD_CONTACT:name:email:company:notes]
 
-━━━ CALENDAR INSTRUCTIONS ━━━
+━━━ CALENDAR ━━━
 [ADD_EVENT:title:date:time:type:location:description:attendees]
-- date: YYYY-MM-DD, time: HH:MM (24hr)
+- date: YYYY-MM-DD, time: HH:MM 24hr
 - type: meeting, appointment, call, deadline, event, reminder
 
 ━━━ INVOICE RULES ━━━
@@ -203,11 +216,11 @@ Auto-save new contacts:
 Every service or item = its own line. Never combine.
 
 PRICING:
-- Individual prices given → use exact prices per line
-- One lump sum for multiple items → first line gets full amount, rest show "Included" / $0.00
+- Individual prices → use exact prices per line
+- One lump sum → first line gets full amount, rest show Included / $0.00
 - Split evenly → divide total by number of items
 
-INVOICE DISPLAY FORMAT:
+INVOICE FORMAT:
 INVOICE #INV-[YEAR]-[NUMBER]
 Bill To: [client]
 
@@ -220,32 +233,30 @@ Total Due: $[x]
 INVOICE MARKER:
 [SEND_INVOICE:email:INV-[YEAR]-[NUM]:clientName:subtotal:tax:total:Item1|1|$rate|$amount&&Item2|1|Included|$0.00]
 
-━━━ ORDER RECORD RULES ━━━
+━━━ ORDER RULES ━━━
 
-ORDER DISPLAY FORMAT:
+ORDER FORMAT:
 ORDER #ORD-[YEAR]-[NUMBER]
 Client: [name]
 
 [Item] | Qty: [n] | Unit: $[price] | Total: $[amount]
-
 Subtotal: $[x] | Delivery: $[x] | Total: $[x]
 
 ORDER MARKER:
 [CREATE_ORDER:clientName:clientEmail:clientPhone:status:dueDate:notes:itemdesc|qty|price|total&&item2|qty|price|total:subtotal:tax:delivery:discount:grandtotal]
 
 RULES:
-- && separates items, | separates item fields
+- && separates items, | separates fields
 - Last 5 colon values: subtotal:tax:delivery:discount:grandtotal
 - No colons inside item descriptions
 
-After order ask: "Want me to generate an invoice for this order?"
+After order: "Want me to generate an invoice for this order?"
 
 ━━━ QUOTE RULES ━━━
 
-QUOTE DISPLAY FORMAT:
+QUOTE FORMAT:
 QUOTE #Q-[YEAR]-[NUMBER]
 Client: [name]
-Valid: [date]
 
 [Item] | Qty: [n] | Unit: $[price] | Total: $[amount]
 Total: $[x]
@@ -253,44 +264,24 @@ Total: $[x]
 QUOTE MARKER:
 [CREATE_QUOTE:clientName:clientEmail:validUntil:notes:itemdesc|qty|price|total&&item2|qty|price|total:subtotal:tax:discount:grandtotal]
 
-When user says "convert quote to invoice" or "client approved the quote" — generate the SEND_INVOICE marker automatically using the quote items.
+When user says "convert quote to invoice" → generate SEND_INVOICE marker automatically.
 
-━━━ DOCUMENT FORMATS ━━━
+━━━ DOCUMENTS ━━━
 
-CONTRACT: # Parties # Services # Terms # Payment # Termination # Signatures
-[CREATE_DOCUMENT:CONTRACT:title|party1|party2]
+CONTRACT: [CREATE_DOCUMENT:CONTRACT:title|party1|party2]
+PROPOSAL: [CREATE_DOCUMENT:PROPOSAL:title|clientName|date]
+REPORT: [CREATE_DOCUMENT:REPORT:title|period|date]
+MEETING AGENDA: [CREATE_DOCUMENT:MEETING AGENDA:title|organizer|date]
+JOB LISTING: [CREATE_DOCUMENT:JOB LISTING:title|company|date]
 
-PROPOSAL: # Executive Summary # Scope # Timeline # Investment # Next Steps
-[CREATE_DOCUMENT:PROPOSAL:title|clientName|date]
-
-REPORT: # Overview # Metrics # Highlights # Challenges # Recommendations
-[CREATE_DOCUMENT:REPORT:title|period|date]
-
-MEETING AGENDA: # Details # Attendees # Agenda # Action Items
-[CREATE_DOCUMENT:MEETING AGENDA:title|organizer|date]
-
-JOB LISTING: # About Role # Responsibilities # Requirements # Benefits # Apply
-[CREATE_DOCUMENT:JOB LISTING:title|company|date]
-
-━━━ EMAIL FORMAT ━━━
-Short — max 5 lines. Professional. On-brand.
+━━━ EMAIL ━━━
+Short — max 5 lines. Professional.
 [SEND_EMAIL:email:subject]
 
-━━━ MULTI-STEP TASK EXECUTION ━━━
+━━━ MULTI-STEP EXECUTION ━━━
 
-When a request contains multiple actions, chain them ALL:
-
-"Schedule inspection for Jane on April 3 at 10:30am AND generate $180 invoice AND email confirmation"
-→ Execute: [ADD_EVENT:...] + [SEND_INVOICE:...] + [SEND_EMAIL:...]
-→ All in one response
-→ Summary: "Done — appointment added for April 3, invoice #INV-2026-xxx generated for $180, confirmation email sent to jane@email.com"
-
-"Create order for David, 5 shelves $85 each, $40 delivery, generate invoice due 14 days"
-→ Execute: [CREATE_ORDER:...] + [SEND_INVOICE:...]
-→ Summary: "Done — order ORD-2026-xxx created, invoice INV-2026-xxx generated for $465 due [date]"
-
-NEVER ask "should I also do X?" when X was clearly requested. Just do it.
-NEVER say "I'll now..." — just do it and confirm at the end.`
+Chain ALL actions in one response. Never ask "should I also...?"
+End with a one-line summary of everything completed.`
 
     const conversationHistory = history.slice(-12).map((msg: { role: string; content: string }) => ({
       role: msg.role,
@@ -313,6 +304,11 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
     })
 
     const data = await response.json()
+
+    if (!data.content?.[0]?.text) {
+      return NextResponse.json({ error: 'AI response failed' }, { status: 500 })
+    }
+
     let reply = data.content[0].text
     let emailSent = false
     let documentId = null
@@ -320,7 +316,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
     let invoiceHTML = null
     let calendarEvent = null
 
-    // Handle quote creation
+    // Handle quote
     const quoteMatch = reply.match(/\[CREATE_QUOTE:([^\]]+)\]/)
     if (quoteMatch) {
       try {
@@ -356,7 +352,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
         })
         reply = reply.replace(/\[CREATE_QUOTE:[^\]]+\]/g, '').trim()
       } catch (e) {
-        console.error('Quote parsing error:', e)
+        console.error('Quote error:', e)
         reply = reply.replace(/\[CREATE_QUOTE:[^\]]+\]/g, '').trim()
       }
     }
@@ -399,7 +395,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
         })
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       } catch (e) {
-        console.error('Order parsing error:', e)
+        console.error('Order error:', e)
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       }
     }
@@ -474,6 +470,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
           <td align="right" style="padding:14px 16px;font-size:14px;font-weight:${isIncluded ? '400' : '700'};color:${isIncluded ? '#9ca3af' : '#0a0a0a'};border-bottom:1px solid #f3f4f6;">${isIncluded ? '—' : amount}</td>
         </tr>`
       }).join('')
+
       reply = reply.replace(/\[SEND_INVOICE:[^\]]+\]/g, '').trim()
 
       invoiceHTML = `<!DOCTYPE html>
@@ -594,7 +591,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
       } catch { }
     }
 
-    // Handle regular email
+    // Handle email
     const emailMatch = reply.match(/\[SEND_EMAIL:([^\]:]+):([^\]]+)\]/)
     if (emailMatch && !invoiceMatch) {
       const recipientEmail = emailMatch[1].trim()
@@ -647,7 +644,7 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
       } catch { }
     }
 
-    // Handle all other documents
+    // Handle documents
     const docMatch = reply.match(/\[CREATE_DOCUMENT:([^:]+):([^\]]+)\]/)
     if (docMatch && !invoiceMatch) {
       documentType = docMatch[1].trim()
@@ -683,6 +680,6 @@ NEVER say "I'll now..." — just do it and confirm at the end.`
 
   } catch (err) {
     console.error('Agent chat error:', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

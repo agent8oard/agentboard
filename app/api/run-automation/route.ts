@@ -6,9 +6,13 @@ export async function POST(req: NextRequest) {
   try {
     const { automationId } = await req.json()
 
+    if (!automationId) {
+      return NextResponse.json({ error: 'Missing automationId' }, { status: 400 })
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
     const { data: automation } = await supabase
@@ -17,7 +21,9 @@ export async function POST(req: NextRequest) {
       .eq('id', automationId)
       .single()
 
-    if (!automation) return NextResponse.json({ error: 'Automation not found' }, { status: 404 })
+    if (!automation) {
+      return NextResponse.json({ error: 'Automation not found' }, { status: 404 })
+    }
 
     const agent = automation.business_agents
     const today = new Date()
@@ -33,7 +39,7 @@ export async function POST(req: NextRequest) {
     const memoryContext = memories?.length ? `MEMORY:\n${memories.map((m: any) => `- ${m.key}: ${m.value}`).join('\n')}` : ''
     const knowledgeContext = knowledge?.length ? `KNOWLEDGE:\n${knowledge.map((k: any) => `${k.title}: ${k.content}`).join('\n')}` : ''
     const contactsContext = contacts?.length ? `CONTACTS:\n${contacts.map((c: any) => `- ${c.name}${c.email ? ` (${c.email})` : ''}`).join('\n')}` : ''
-    const eventsContext = events?.length ? `UPCOMING EVENTS:\n${events.map((e: any) => `- ${e.event_date}: ${e.title}`).join('\n')}` : ''
+    const eventsContext = events?.length ? `UPCOMING:\n${events.map((e: any) => `- ${e.event_date}: ${e.title}`).join('\n')}` : ''
 
     const systemPrompt = `You are ${agent.agent_name}, AI business agent for ${agent.business_name}.
 Today: ${formatDate(today)}
@@ -43,7 +49,7 @@ ${contactsContext}
 ${eventsContext}
 
 You are running a scheduled automation. Complete the task fully and professionally.
-Be concise and actionable. Format output clearly with sections where appropriate.`
+Be concise and actionable. Format output clearly.`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -78,63 +84,52 @@ Be concise and actionable. Format output clearly with sections where appropriate
     }).eq('id', automationId)
 
     if (automation.notify_email) {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      await resend.emails.send({
-        from: 'AgentBoard <onboarding@resend.dev>',
-        to: automation.notify_email,
-        subject: `${automation.name} — ${agent.business_name}`,
-        html: `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: 'AgentBoard <onboarding@resend.dev>',
+          to: automation.notify_email,
+          subject: `${automation.name} — ${agent.business_name}`,
+          html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:48px 24px;">
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
-  <tr>
-    <td style="background:#0a0a0a;padding:28px 40px;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div>
-          <div style="color:#9ca3af;font-size:11px;font-family:monospace;margin-top:4px;">Scheduled Automation</div></td>
-          <td align="right"><span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">${automation.name}</span></td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-  <tr>
-    <td style="padding:32px 40px;">
-      <div style="font-family:monospace;font-size:11px;color:#9ca3af;margin-bottom:16px;letter-spacing:1px;text-transform:uppercase;">Automation Result — ${formatDate(today)}</div>
-      <div style="font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;">${result.replace(/\n/g, '<br>')}</div>
-    </td>
-  </tr>
-  <tr>
-    <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${agent.agent_name}</td>
-          <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">AgentBoard</td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`
-      })
+  <tr><td style="background:#0a0a0a;padding:28px 40px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td><div style="color:#ffffff;font-size:17px;font-weight:700;">${agent.business_name}</div>
+      <div style="color:#9ca3af;font-size:11px;font-family:monospace;margin-top:4px;">Scheduled Automation</div></td>
+      <td align="right"><span style="background:#c8f135;color:#0a0a0a;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:20px;font-family:monospace;">${automation.name}</span></td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <div style="font-family:monospace;font-size:11px;color:#9ca3af;margin-bottom:16px;letter-spacing:1px;text-transform:uppercase;">Result — ${formatDate(today)}</div>
+    <div style="font-size:14px;line-height:1.8;color:#374151;white-space:pre-wrap;">${result.replace(/\n/g, '<br>')}</div>
+  </td></tr>
+  <tr><td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="font-size:11px;color:#9ca3af;font-family:monospace;">Sent by ${agent.agent_name}</td>
+      <td align="right" style="font-size:11px;color:#9ca3af;font-family:monospace;">AgentBoard</td>
+    </tr></table>
+  </td></tr>
+</table></td></tr></table>
+</body></html>`
+        })
+      } catch { }
     }
 
     return NextResponse.json({ success: true, result })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('Run automation error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 function calculateNextRun(schedule: string, day: string, time: string): string {
   const now = new Date()
   const [hours, minutes] = time.split(':').map(Number)
-  let next = new Date()
+  const next = new Date()
   next.setHours(hours, minutes, 0, 0)
 
   if (schedule === 'daily') {
