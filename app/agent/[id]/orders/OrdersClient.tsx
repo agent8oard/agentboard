@@ -176,6 +176,13 @@ export default function OrdersClient({ agent, orders }: {
         </div>
       )}
 
+      <style>{`
+        @media (max-width: 768px) {
+          .orders-content { padding: 16px !important; }
+          .orders-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
+
       <main className="app-main">
         <div className="app-header">
           <button onClick={() => router.push(`/agent/${agent.id as string}`)} className="btn btn-ghost btn-sm">
@@ -187,10 +194,10 @@ export default function OrdersClient({ agent, orders }: {
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>{agent.business_name as string}</span>
         </div>
 
-        <div style={{ width: '100%', padding: '40px 48px' }}>
+        <div className="orders-content" style={{ width: '100%', padding: '40px 48px' }}>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+          <div className="orders-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
             {[
               { label: 'Total orders', value: allOrders.length, color: 'var(--accent)' },
               { label: 'Completed revenue', value: formatCurrency(totalRevenue), color: 'var(--green)' },
@@ -249,6 +256,7 @@ export default function OrdersClient({ agent, orders }: {
             </div>
           ) : (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
               <table className="table">
                 <thead>
                   <tr>
@@ -312,6 +320,7 @@ export default function OrdersClient({ agent, orders }: {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

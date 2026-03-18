@@ -171,7 +171,7 @@ export default function Sidebar() {
         height: 48, background: 'var(--bg2)',
         borderBottom: '1px solid var(--border)',
         alignItems: 'center', padding: '0 16px',
-        justifyContent: 'space-between', zIndex: 60,
+        justifyContent: 'space-between', zIndex: 65,
       }} className="mobile-header">
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
           <div className="sidebar-logo-mark">A</div>
@@ -187,10 +187,10 @@ export default function Sidebar() {
 
       {mobileOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(0,0,0,0.5)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setMobileOpen(false)}>
           <div
-            style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 280, background: 'var(--bg2)', borderRight: '1px solid var(--border)' }}
+            style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 280, background: 'var(--bg2)', borderRight: '1px solid var(--border)', overflowY: 'auto' }}
             onClick={e => e.stopPropagation()}>
             <SidebarContent />
           </div>

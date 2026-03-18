@@ -211,7 +211,7 @@ export default function ManageClient({
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>{agent.business_name as string}</span>
         </div>
 
-        <div style={{ width: '100%', padding: '40px 48px' }}>
+        <div className="manage-content" style={{ width: '100%', padding: '40px 48px' }}>
 
           {msg && (
             <div style={{ background: msgType === 'success' ? '#0d2e14' : '#2a0a0a', border: `1px solid ${msgType === 'success' ? '#1a4a24' : '#4a1a1a'}`, borderRadius: 8, padding: '10px 16px', marginBottom: 20, fontFamily: 'var(--sidebar-font)', fontSize: 13, color: msgType === 'success' ? '#4ade80' : '#f87171' }}>
@@ -247,7 +247,7 @@ export default function ManageClient({
                   <button onClick={() => kbFileRef.current?.click()} className="btn btn-outline" style={{ fontSize: 12, fontFamily: 'var(--sidebar-font)' }}>Choose file</button>
                   <input ref={kbFileRef} type="file" accept=".txt,.csv,.md" onChange={handleKbFileUpload} style={{ display: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div className="manage-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div>
                     <label className="label">Title *</label>
                     <input style={inputStyle} placeholder="e.g. Consultation Fee" value={newKb.title} onChange={e => setNewKb({ ...newKb, title: e.target.value })} />
@@ -343,7 +343,7 @@ export default function ManageClient({
 
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
                 <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Add contact manually</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div className="manage-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div><label className="label">Name *</label><input style={inputStyle} placeholder="John Smith" value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })} /></div>
                   <div><label className="label">Email</label><input style={inputStyle} placeholder="john@example.com" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })} /></div>
                   <div><label className="label">Phone</label><input style={inputStyle} placeholder="+1 234 567 8900" value={newContact.phone} onChange={e => setNewContact({ ...newContact, phone: e.target.value })} /></div>
@@ -415,7 +415,7 @@ export default function ManageClient({
               <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
                 <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Invite team member</div>
                 <p style={{ fontSize: 13, color: 'var(--fg3)', marginBottom: 16, fontFamily: 'var(--sidebar-font)' }}>Invite staff to use this agent. They can chat and run automations.</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
+                <div className="manage-team-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
                   <div><label className="label">Email address</label><input style={inputStyle} placeholder="staff@yourbusiness.com" value={newTeam.email} onChange={e => setNewTeam({ ...newTeam, email: e.target.value })} /></div>
                   <div><label className="label">Role</label><select style={{ ...inputStyle, width: 'auto' }} value={newTeam.role} onChange={e => setNewTeam({ ...newTeam, role: e.target.value })}><option value="member">Member</option><option value="admin">Admin</option></select></div>
                   <button onClick={inviteTeam} disabled={saving} className="btn btn-accent" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)' }}>{saving ? 'Inviting...' : 'Invite →'}</button>
@@ -555,6 +555,14 @@ export default function ManageClient({
           )}
         </div>
       </main>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .manage-content { padding: 16px !important; }
+          .manage-form-grid { grid-template-columns: 1fr !important; }
+          .manage-team-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

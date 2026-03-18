@@ -177,33 +177,33 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
       )}
 
       <main className="app-main">
-        <div className="app-header">
-          <button onClick={() => router.push('/dashboard')} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
+        <div className="app-header agent-header" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+          <button onClick={() => router.push('/dashboard')} className="btn btn-ghost btn-sm" style={{ gap: 6, flexShrink: 0 }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
             Back
           </button>
-          <div style={{ width: 1, height: 16, background: 'var(--border2)' }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)' }}>{agent.agent_name as string}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 1, height: 16, background: 'var(--border2)', flexShrink: 0 }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', fontFamily: 'var(--sidebar-font)', flexShrink: 0 }}>{agent.agent_name as string}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span className="status-dot green" />
             <span style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12, color: 'var(--fg3)' }}>active</span>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexShrink: 0 }}>
             {[{ key: 'home', label: 'Overview' }, { key: 'chat', label: 'Chat' }, { key: 'calendar', label: `Calendar${upcomingEvents.length > 0 ? ` (${upcomingEvents.length})` : ''}` }].map(tab => (
-              <button key={tab.key} onClick={() => { if (tab.key === 'chat' && messages.length === 0) setMessages([{ role: 'assistant', content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`, timestamp: new Date().toISOString() }]); setView(tab.key as 'home' | 'chat' | 'calendar') }} className={`btn btn-sm ${view === tab.key ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 500 }}>
+              <button key={tab.key} onClick={() => { if (tab.key === 'chat' && messages.length === 0) setMessages([{ role: 'assistant', content: `Hi! I'm ${agent.agent_name as string}, your AI assistant for ${agent.business_name as string}. What do you need done?`, timestamp: new Date().toISOString() }]); setView(tab.key as 'home' | 'chat' | 'calendar') }} className={`btn btn-sm ${view === tab.key ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 500, flexShrink: 0 }}>
                 {tab.label}
               </button>
             ))}
-            <div style={{ width: 1, height: 16, background: 'var(--border2)', alignSelf: 'center' }} />
+            <div style={{ width: 1, height: 16, background: 'var(--border2)', alignSelf: 'center', flexShrink: 0 }} />
             {[{ label: 'Manage', path: 'manage' }, { label: 'Analytics', path: 'analytics' }, { label: 'Automations', path: 'automations' }, { label: 'Orders', path: 'orders' }, { label: 'Quotes', path: 'quotes' }].map(btn => (
-              <button key={btn.path} onClick={() => router.push(`/agent/${agent.id as string}/${btn.path}`)} className="btn btn-outline btn-sm" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 500 }}>
+              <button key={btn.path} onClick={() => router.push(`/agent/${agent.id as string}/${btn.path}`)} className="btn btn-outline btn-sm" style={{ fontSize: 13, fontFamily: 'var(--sidebar-font)', fontWeight: 500, flexShrink: 0 }}>
                 {btn.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ width: '100%', padding: '40px 48px' }}>
+        <div className="agent-content" style={{ width: '100%', padding: '40px 48px' }}>
 
           {view === 'home' && (
             <div>
@@ -233,7 +233,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               </div>
 
               {/* Stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
+              <div className="agent-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
                 {[
                   { label: 'Tasks run', value: recentRuns.length, color: 'var(--accent)', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg> },
                   { label: 'Upcoming events', value: upcomingEvents.length, color: 'var(--blue)', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg> },
@@ -297,7 +297,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
               {/* Quick actions */}
               <div style={{ marginBottom: 36 }}>
                 <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg)', marginBottom: 14, fontFamily: 'var(--sidebar-font)' }}>Quick actions</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                <div className="quick-actions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                   {QUICK_ACTIONS.map((action, i) => (
                     <button key={i} onClick={() => startAction(action)} style={{ textAlign: 'left', padding: '18px 20px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border3)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg3)' }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg2)' }}>
                       <div style={{ color: 'var(--fg3)', marginBottom: 10 }}>{action.icon}</div>
@@ -328,7 +328,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
           )}
 
           {view === 'chat' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)' }}>
+            <div className="chat-container" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)' }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                 {QUICK_ACTIONS.slice(0, 6).map((action, i) => (
                   <button key={i} onClick={() => startAction(action)} style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12, padding: '6px 14px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, cursor: 'pointer', color: 'var(--fg3)', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border2)' }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg3)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)' }}>
@@ -401,8 +401,8 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
           )}
 
           {view === 'calendar' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
-              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="calendar-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--sidebar-font)' }}>{monthNames[calendarDate.getMonth()]} {calendarDate.getFullYear()}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -479,6 +479,14 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
         @keyframes pulse {
           0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
           30% { opacity: 1; transform: scale(1.2); }
+        }
+        @media (max-width: 768px) {
+          .agent-header { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+          .agent-content { padding: 16px !important; }
+          .agent-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .quick-actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .calendar-layout { grid-template-columns: 1fr !important; }
+          .calendar-layout > div:first-child { overflow-x: auto; }
         }
       `}</style>
     </div>

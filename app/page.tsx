@@ -401,6 +401,14 @@ export default function Home() {
           .section { padding: 60px 20px; }
           .cta-section { padding: 60px 20px; }
           .footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+          .feature-grid { grid-template-columns: 1fr 1fr !important; }
+          .steps-grid { grid-template-columns: 1fr !important; }
+          .platform-grid { grid-template-columns: 1fr !important; }
+          .hero-cta { flex-direction: column; align-items: center; }
+          .btn-hero-primary, .btn-hero-secondary { width: 100%; justify-content: center; }
+        }
+        @media (max-width: 480px) {
+          .feature-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 

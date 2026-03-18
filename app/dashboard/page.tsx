@@ -222,7 +222,7 @@ export default function DashboardPage() {
           <span className="page-title">Dashboard</span>
         </div>
 
-        <div style={{ width: '100%', padding: '40px 48px' }}>
+        <div className="dashboard-content" style={{ width: '100%', padding: '40px 48px' }}>
 
           {/* Welcome banner */}
           <div style={{
@@ -272,7 +272,7 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-          <div style={{
+          <div className="stats-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 16,
@@ -371,7 +371,7 @@ export default function DashboardPage() {
               </Link>
             </div>
           ) : (
-            <div style={{
+            <div className="agents-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
               gap: 16,
@@ -520,6 +520,14 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .dashboard-content { padding: 16px !important; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .agents-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

@@ -103,6 +103,14 @@ export default function DocumentPage() {
             </div>
           )}
 
+          {/* Mobile responsive styles */}
+          <style>{`
+            @media (max-width: 768px) {
+              .app-content { padding: 16px !important; }
+              .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            }
+          `}</style>
+
           {filtered.length === 0 ? (
             <div className="card">
               <div className="empty-state">
@@ -115,6 +123,7 @@ export default function DocumentPage() {
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="table-wrapper">
               <table className="table">
                 <thead>
                   <tr>
@@ -163,6 +172,7 @@ export default function DocumentPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

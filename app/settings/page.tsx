@@ -149,9 +149,18 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .settings-wrapper { padding: 16px !important; }
+          .settings-layout { grid-template-columns: 1fr !important; }
+          .settings-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
+          .settings-form-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+      <div className="settings-wrapper" style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+
+        <div className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
           <div>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Account</div>
             <h1 style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 400, marginBottom: 4 }}>Settings</h1>
@@ -166,7 +175,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 32 }}>
+        <div className="settings-layout" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 32 }}>
 
           {/* Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -210,7 +219,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div className="settings-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                     <div>
                       <label style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>Full name</label>
                       <input style={inputStyle} placeholder="John Smith" value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} />

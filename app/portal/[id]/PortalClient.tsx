@@ -136,7 +136,7 @@ export default function PortalClient({
     return (
       <div style={{ minHeight: '100vh', background: theme.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', transition: 'background 0.2s, color 0.2s' }}>
 
-        <div style={{ background: theme.surface, borderBottom: `1px solid ${theme.border}`, padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, transition: 'all 0.2s' }}>
+        <div style={{ background: theme.surface, borderBottom: `1px solid ${theme.border}`, padding: '0 clamp(16px, 4vw, 40px)', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, transition: 'all 0.2s' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <AgentAvatar size={36} borderRadius={10} fontSize={16} />
             <div>
@@ -153,7 +153,7 @@ export default function PortalClient({
           </div>
         </div>
 
-        <div style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 80px' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto', padding: 'clamp(32px, 6vw, 60px) 16px 80px' }}>
 
           <div style={{ textAlign: 'center', marginBottom: 72 }}>
             <div style={{ margin: '0 auto 28px', width: 'fit-content' }}>
@@ -225,7 +225,7 @@ export default function PortalClient({
           </div>
         </div>
 
-        <div style={{ borderTop: `1px solid ${theme.border}`, padding: '20px 40px', textAlign: 'center', background: theme.surface, transition: 'all 0.2s' }}>
+        <div style={{ borderTop: `1px solid ${theme.border}`, padding: '20px 16px', textAlign: 'center', background: theme.surface, transition: 'all 0.2s' }}>
           <span style={{ fontSize: 12, color: theme.textFaint }}>Powered by </span>
           <span style={{ fontSize: 12, fontWeight: 700, color: theme.textMuted }}>AgentBoard</span>
         </div>
@@ -293,7 +293,7 @@ export default function PortalClient({
         <div ref={bottomRef} />
       </div>
 
-      <div style={{ background: theme.surface, borderTop: `1px solid ${theme.border}`, padding: '16px 24px', flexShrink: 0, transition: 'all 0.2s' }}>
+      <div style={{ background: theme.surface, borderTop: `1px solid ${theme.border}`, padding: '16px clamp(12px, 3vw, 24px)', flexShrink: 0, transition: 'all 0.2s' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
           <div style={{ flex: 1, background: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: 12, padding: '10px 14px' }}>
             <textarea

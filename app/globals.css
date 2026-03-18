@@ -653,9 +653,43 @@ body {
   .nav-link { display: none; }
   .mobile-menu-btn { display: flex !important; }
   .mobile-header { display: flex !important; }
+
+  /* Dashboard */
+  .dashboard-content { padding: 16px !important; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .agents-grid { grid-template-columns: 1fr !important; }
+
+  /* Agent */
+  .agent-content { padding: 16px !important; }
+  .agent-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .quick-actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .calendar-layout { grid-template-columns: 1fr !important; }
+
+  /* Manage */
+  .manage-content { padding: 16px !important; }
+  .manage-form-grid { grid-template-columns: 1fr !important; }
+  .manage-team-grid { grid-template-columns: 1fr !important; }
+
+  /* Orders */
+  .orders-content { padding: 16px !important; }
+  .orders-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Settings */
+  .settings-wrapper { padding: 16px !important; }
+  .settings-layout { grid-template-columns: 1fr !important; }
+  .settings-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
+  .settings-form-grid { grid-template-columns: 1fr !important; }
+
+  /* App header overflow for long button rows */
+  .app-header { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+
+  /* Chat view height on mobile */
+  .chat-container { height: calc(100vh - 210px) !important; }
 }
 
 @media (max-width: 480px) {
   .app-content { padding: 12px; }
   .page { padding: 16px 12px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .quick-actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
