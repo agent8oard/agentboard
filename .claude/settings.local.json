@@ -12,7 +12,10 @@
       "Bash(echo \"Exit: $?\")",
       "Bash(npm install:*)",
       "Bash(node:*)",
-      "Bash(npx svgexport:*)"
+      "Bash(npx svgexport:*)",
+      "Bash(npm run:*)",
+      "Bash(ls -lh /c/Users/mavin/agentboard/dist-electron/*.exe)",
+      "Bash(ls -lh /c/Users/mavin/agentboard/dist-electron/*.blockmap)"
     ]
   }
 }

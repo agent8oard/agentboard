@@ -23,9 +23,11 @@ export default function DashboardPage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [showChecklist, setShowChecklist] = useState(false)
   const [hasKnowledge, setHasKnowledge] = useState(false)
+  const [isElectron, setIsElectron] = useState(false)
 
   useEffect(() => {
     document.title = 'Dashboard | AgentBoard'
+    setIsElectron(!!(window as Window & { electronAPI?: { isElectron?: boolean } }).electronAPI?.isElectron)
   }, [])
 
   useEffect(() => {
@@ -279,9 +281,23 @@ export default function DashboardPage() {
                   : `You have ${businessAgents.length} active AI agent${businessAgents.length > 1 ? 's' : ''} running.`}
               </div>
             </div>
-            <Link href="/builder" className="btn btn-accent" style={{ height: 44, padding: '0 28px', fontSize: 15, fontWeight: 600 }}>
-              + Build new agent
-            </Link>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {isElectron && (
+                <button
+                  onClick={() => {
+                    const w = window as Window & { electronAPI?: { openDesktopMode?: () => void } }
+                    w.electronAPI?.openDesktopMode?.()
+                  }}
+                  style={{ height: 44, padding: '0 22px', fontSize: 13, fontWeight: 600, background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 10, cursor: 'pointer', color: 'var(--fg)', fontFamily: 'var(--mono)', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                  Desktop Mode
+                </button>
+              )}
+              <Link href="/builder" className="btn btn-accent" style={{ height: 44, padding: '0 28px', fontSize: 15, fontWeight: 600 }}>
+                + Build new agent
+              </Link>
+            </div>
           </div>
 
           {/* Onboarding checklist */}
