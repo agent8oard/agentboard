@@ -54,19 +54,45 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .single()
 
+      const hasAgents = agents.length > 0
+
       if (!prof) {
-        await supabase.from('profiles').insert({
-          id: user.id,
-          onboarding_step: 0,
-          onboarding_completed: false,
-        })
-        setProfile({ onboarding_step: 0, onboarding_completed: false })
-        setShowWelcome(true)
-      } else {
-        setProfile(prof)
-        if (prof.onboarding_step === 0) {
+        // No profile yet — existing users with agents get marked complete immediately
+        if (hasAgents) {
+          await supabase.from('profiles').insert({
+            id: user.id,
+            onboarding_step: 5,
+            onboarding_completed: true,
+          })
+          setProfile({ onboarding_step: 5, onboarding_completed: true })
+          // Don't show modal or checklist
+        } else {
+          await supabase.from('profiles').insert({
+            id: user.id,
+            onboarding_step: 0,
+            onboarding_completed: false,
+          })
+          setProfile({ onboarding_step: 0, onboarding_completed: false })
           setShowWelcome(true)
-        } else if (!prof.onboarding_completed) {
+        }
+      } else {
+        // Profile exists — never show anything if already completed or step > 0
+        if (prof.onboarding_completed) {
+          setProfile(prof)
+          // Nothing to show
+        } else if (hasAgents) {
+          // Has agents but onboarding not marked complete — fix that now
+          await supabase
+            .from('profiles')
+            .update({ onboarding_step: 5, onboarding_completed: true })
+            .eq('id', user.id)
+          setProfile({ onboarding_step: 5, onboarding_completed: true })
+          // Nothing to show
+        } else if (prof.onboarding_step === 0) {
+          setProfile(prof)
+          setShowWelcome(true)
+        } else {
+          setProfile(prof)
           setShowChecklist(true)
         }
       }
