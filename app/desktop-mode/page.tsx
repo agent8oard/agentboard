@@ -947,30 +947,48 @@ function DesktopModeInner() {
   useEffect(() => {
     document.title = 'Desktop Mode | AgentBoard'
     const init = async () => {
+      // Debug: log URL params
+      console.log('[DesktopMode] searchParams:', Object.fromEntries(searchParams.entries()))
+      console.log('[DesktopMode] urlAgentId:', urlAgentId)
+
       // Require agentId in URL
       if (!urlAgentId) {
+        console.warn('[DesktopMode] No agentId in URL, redirecting to dashboard')
         router.replace('/dashboard')
         return
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      console.log('[DesktopMode] user:', user?.id, 'userError:', userError)
       if (!user) { router.push('/auth'); return }
 
-      const { data } = await supabase.from('business_agents')
-        .select('id, agent_name, business_name, portal_color, greeting, system_prompt')
-        .eq('user_id', user.id).order('created_at', { ascending: false })
-      const list = (data || []) as Agent[]
-      setAgents(list)
+      // Fetch the specific agent directly by id — RLS handles security, no user_id filter needed
+      const { data: agent, error: agentError } = await supabase
+        .from('business_agents').select('*').eq('id', urlAgentId).single()
+      console.log('[DesktopMode] agent fetch result:', agent, 'error:', agentError)
 
-      // Verify the requested agent belongs to this user
-      const requestedAgent = list.find(a => a.id === urlAgentId)
-      if (!requestedAgent) {
-        setPageError(`Agent not found or you don't have access to it.`)
+      if (!agent) {
+        const msg = agentError?.message || 'No data returned'
+        console.error('[DesktopMode] Agent not found. agentId:', urlAgentId, 'error:', msg)
+        setPageError(`Could not load agent (id: ${urlAgentId}). ${msg}`)
         setPageLoading(false)
         return
       }
 
-      // Always default to the URL agent, then restore saved layout
+      // Fetch all user's agents for the dropdown
+      const { data: agentsList, error: listError } = await supabase
+        .from('business_agents').select('id, agent_name, business_name, portal_color, greeting, system_prompt')
+        .eq('user_id', user.id).order('created_at', { ascending: false })
+      console.log('[DesktopMode] agents list count:', agentsList?.length, 'listError:', listError)
+
+      // Build list — ensure the URL agent is included even if not in the user's list
+      const list = (agentsList || []) as Agent[]
+      if (!list.find(a => a.id === urlAgentId)) {
+        list.unshift(agent as Agent)
+      }
+      setAgents(list)
+
+      // URL agent always wins as selected
       setSelectedAgentId(urlAgentId)
       try {
         const saved = localStorage.getItem(STORAGE_KEY)
@@ -978,14 +996,13 @@ function DesktopModeInner() {
           const parsed = JSON.parse(saved)
           if (Array.isArray(parsed.slots) && parsed.slots.length > 0) setSlots(parsed.slots)
           if (parsed.columns === 2 || parsed.columns === 3) setColumns(parsed.columns)
-          // URL agent always wins over saved agent
         }
       } catch { /* ignore */ }
 
       setPageLoading(false)
     }
     init()
-  }, [router, urlAgentId])
+  }, [router, urlAgentId, searchParams])
 
   // Persist layout
   useEffect(() => {
