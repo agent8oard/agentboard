@@ -10,7 +10,7 @@ type PanelType =
   | 'chat' | 'dashboard' | 'knowledge' | 'contacts'
   | 'orders' | 'quotes' | 'automations' | 'analytics'
   | 'calendar' | 'conversations' | 'memory' | 'team'
-  | 'documents' | 'portal-preview'
+  | 'documents' | 'portal-preview' | 'browser'
 
 type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
 
@@ -70,6 +70,7 @@ const PANEL_DEFS: PanelDef[] = [
   { type: 'team',           label: 'Team',                desc: 'Team members list',               icon: <Ico d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,      defaultW: 400, defaultH: 350 },
   { type: 'documents',      label: 'Documents',           desc: 'Generated documents list',        icon: <Ico d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8" />,                                                    defaultW: 500, defaultH: 350 },
   { type: 'portal-preview', label: 'Portal Preview',      desc: 'Live customer portal preview',    icon: <Ico d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,                                                                                         defaultW: 600, defaultH: 500 },
+  { type: 'browser',        label: 'Browser',             desc: 'Built-in web browser',            icon: <Ico d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 0-4-10 15.3 15.3 0 0 0 4-10z" />, defaultW: 700, defaultH: 500 },
 ]
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -916,6 +917,153 @@ function DocumentsContent({ agentId }: { agentId: string }) {
   )
 }
 
+// ─── Panel: Browser ───────────────────────────────────────────────────────────
+
+const HOME_URL = 'https://www.google.com'
+
+function normalizeUrl(raw: string): string {
+  const s = raw.trim()
+  if (!s) return HOME_URL
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+  // No dot → treat as search query
+  if (!s.includes('.')) return `https://www.google.com/search?q=${encodeURIComponent(s)}`
+  return `https://${s}`
+}
+
+function BrowserContent() {
+  const [url, setUrl] = useState(HOME_URL)
+  const [inputVal, setInputVal] = useState(HOME_URL)
+  const [blocked, setBlocked] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  const navigate = (target: string) => {
+    const resolved = normalizeUrl(target)
+    setUrl(resolved)
+    setInputVal(resolved)
+    setBlocked(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') navigate(inputVal)
+  }
+
+  const handleRefresh = () => {
+    setBlocked(false)
+    // Force reload by briefly clearing src then restoring
+    const iframe = iframeRef.current
+    if (iframe) {
+      iframe.src = 'about:blank'
+      setTimeout(() => { if (iframeRef.current) iframeRef.current.src = url }, 50)
+    }
+  }
+
+  const handleBack = () => {
+    try { iframeRef.current?.contentWindow?.history.back() } catch { /* cross-origin */ }
+  }
+
+  const handleForward = () => {
+    try { iframeRef.current?.contentWindow?.history.forward() } catch { /* cross-origin */ }
+  }
+
+  const btnStyle: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 6,
+    background: '#1a1a1a', border: '1px solid #2e2e2e',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', color: '#666', flexShrink: 0, transition: 'all 0.12s',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d0d0d' }}>
+
+      {/* URL bar */}
+      <div style={{ padding: '7px 10px', borderBottom: '1px solid #1a1a1a', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button style={btnStyle} onClick={handleBack} title="Back"
+          onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = '#444' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2e2e2e' }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <button style={btnStyle} onClick={handleForward} title="Forward"
+          onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = '#444' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2e2e2e' }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+        <button style={btnStyle} onClick={handleRefresh} title="Refresh"
+          onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = '#444' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2e2e2e' }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
+          </svg>
+        </button>
+        <button style={btnStyle} onClick={() => navigate(HOME_URL)} title="Home"
+          onMouseEnter={e => { e.currentTarget.style.color = '#c8f135'; e.currentTarget.style.borderColor = '#c8f13566' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2e2e2e' }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </button>
+
+        <input
+          type="text"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={e => { e.currentTarget.style.borderColor = '#c8f135'; e.currentTarget.style.outline = 'none' }}
+          onBlur={e => { e.currentTarget.style.borderColor = '#2e2e2e' }}
+          style={{
+            flex: 1, padding: '5px 10px', background: '#1a1a1a', border: '1px solid #2e2e2e',
+            borderRadius: 6, fontFamily: 'var(--mono)', fontSize: 11, color: '#ededed',
+            outline: 'none', transition: 'border-color 0.12s',
+          }}
+          spellCheck={false}
+        />
+
+        <button style={{ ...btnStyle, width: 'auto', padding: '0 10px', fontSize: 11, fontFamily: 'var(--mono)' }}
+          onClick={() => navigate(inputVal)}
+          onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = '#444' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2e2e2e' }}>
+          Go
+        </button>
+      </div>
+
+      {/* Content area */}
+      {blocked ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#1a1a1a', border: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444' }}>
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#aaa', marginBottom: 6 }}>This site cannot be displayed in the panel.</div>
+            <div style={{ fontSize: 11, color: '#444', fontFamily: 'var(--mono)' }}>Try opening it in your default browser.</div>
+          </div>
+          <button
+            onClick={() => window.open(url, '_blank')}
+            style={{ padding: '7px 16px', background: '#1a1a1a', border: '1px solid #2e2e2e', borderRadius: 7, color: '#c8f135', fontFamily: 'var(--mono)', fontSize: 11, cursor: 'pointer', transition: 'all 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#c8f135' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#2e2e2e' }}>
+            Open in browser ↗
+          </button>
+        </div>
+      ) : (
+        <iframe
+          ref={iframeRef}
+          src={url}
+          style={{ flex: 1, border: 'none', width: '100%', background: '#fff', display: 'block' }}
+          title="Browser"
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+          allowFullScreen
+          onError={() => setBlocked(true)}
+        />
+      )}
+    </div>
+  )
+}
+
 // ─── Panel: Portal Preview ────────────────────────────────────────────────────
 
 function PortalPreviewContent({ agentId }: { agentId: string }) {
@@ -959,6 +1107,7 @@ function PanelContent({ type, agentId }: { type: PanelType; agentId: string }) {
     case 'team':           return <TeamContent agentId={agentId} />
     case 'documents':      return <DocumentsContent agentId={agentId} />
     case 'portal-preview': return <PortalPreviewContent agentId={agentId} />
+    case 'browser':        return <BrowserContent />
     default:               return null
   }
 }
