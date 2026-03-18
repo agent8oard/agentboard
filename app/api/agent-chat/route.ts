@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rateLimit'
-import { sanitize } from '@/lib/sanitize'
+import { sanitize, escapeHtml } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
   try {
@@ -652,7 +652,7 @@ End with a one-line summary of everything completed.`
       </table>
     </td>
   </tr>
-  <tr><td style="padding:36px 40px;font-size:14px;line-height:1.8;color:#374151;">${reply.replace(/\n/g, '<br>')}</td></tr>
+  <tr><td style="padding:36px 40px;font-size:14px;line-height:1.8;color:#374151;">${escapeHtml(reply).replace(/\n/g, '<br>')}</td></tr>
   <tr>
     <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">

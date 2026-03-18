@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { useRouter } from 'next/navigation'
@@ -15,11 +15,15 @@ export default function ManageClient({
   team: Record<string, unknown>[]
 }) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'knowledge' | 'contacts' | 'memory' | 'team' | 'portal'>('knowledge')
+  const [activeTab, setActiveTab] = useState<'knowledge' | 'contacts' | 'memory' | 'team' | 'portal' | 'conversations'>('knowledge')
   const [kb, setKb] = useState(knowledge)
   const [cts, setCts] = useState(contacts)
   const [mem, setMem] = useState(memories)
   const [tm, setTm] = useState(team)
+  const [convos, setConvos] = useState<Record<string, unknown>[]>([])
+  const [convosLoading, setConvosLoading] = useState(false)
+  const [expandedConvo, setExpandedConvo] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const kbFileRef = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
@@ -46,6 +50,26 @@ export default function ManageClient({
   const [showPreview, setShowPreview] = useState(false)
 
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid var(--border2)', borderRadius: 8, fontFamily: 'var(--sidebar-font)', fontSize: 13, background: 'var(--bg3)', color: 'var(--fg)', outline: 'none' }
+
+  useEffect(() => {
+    if (activeTab === 'conversations') loadConversations()
+  }, [activeTab])
+
+  const loadConversations = async () => {
+    setConvosLoading(true)
+    const { data } = await supabase
+      .from('portal_conversations')
+      .select('*')
+      .eq('business_agent_id', agent.id as string)
+      .order('updated_at', { ascending: false })
+      .limit(50)
+    setConvos(data || [])
+    setConvosLoading(false)
+  }
+
+  const confirmThen = (message: string, onConfirm: () => void) => {
+    setConfirmDialog({ message, onConfirm })
+  }
 
   const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
     setMsg(text); setMsgType(type)
@@ -81,16 +105,28 @@ export default function ManageClient({
   const importContacts = async () => {
     if (!csvAllRows.length) return
     setImporting(true)
-    const contactsToInsert = csvAllRows.map(row => {
+    const existingEmails = new Set(cts.map(c => (c.email as string)?.toLowerCase()).filter(Boolean))
+    const mapped = csvAllRows.map(row => {
       const contact: Record<string, string> = { name: '', email: '', phone: '', company: '', notes: '' }
       Object.entries(columnMap).forEach(([col, field]) => {
         if (field !== 'skip' && row[col]) contact[field] = contact[field] ? `${contact[field]} ${row[col]}` : row[col]
       })
       return { business_agent_id: agent.id as string, name: contact.name || 'Unknown', email: contact.email || '', phone: contact.phone || '', company: contact.company || '', notes: contact.notes || '' }
     }).filter(c => c.name !== 'Unknown' || c.email)
+    const contactsToInsert = mapped.filter(c => !c.email || !existingEmails.has(c.email.toLowerCase()))
+    const skipped = mapped.length - contactsToInsert.length
+    if (contactsToInsert.length === 0) {
+      showMsg(`All ${skipped} contacts already exist (duplicate emails skipped).`, 'error')
+      setImporting(false)
+      return
+    }
     const { data, error } = await supabase.from('contacts').insert(contactsToInsert).select()
     if (error) showMsg(`Import failed: ${error.message}`, 'error')
-    else { setCts(prev => [...(data || []), ...prev]); setShowPreview(false); setCsvPreview([]); setCsvAllRows([]); showMsg(`Imported ${data?.length || 0} contacts!`) }
+    else {
+      setCts(prev => [...(data || []), ...prev])
+      setShowPreview(false); setCsvPreview([]); setCsvAllRows([])
+      showMsg(`Imported ${data?.length || 0} contacts!${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`)
+    }
     setImporting(false)
   }
 
@@ -122,6 +158,8 @@ export default function ManageClient({
   }
 
   const deleteKb = async (id: string) => {
+    const item = kb.find(k => k.id === id)
+    if (!item || item.business_agent_id !== agent.id) { showMsg('Unauthorized', 'error'); return }
     const res = await fetch('/api/knowledge', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     const json = await res.json()
     if (json.error) showMsg(`Failed to delete: ${json.error}`, 'error')
@@ -138,12 +176,16 @@ export default function ManageClient({
   }
 
   const deleteContact = async (id: string) => {
-    await supabase.from('contacts').delete().eq('id', id)
+    const item = cts.find(c => c.id === id)
+    if (!item || item.business_agent_id !== agent.id) { showMsg('Unauthorized', 'error'); return }
+    await supabase.from('contacts').delete().eq('id', id).eq('business_agent_id', agent.id as string)
     setCts(prev => prev.filter(c => c.id !== id))
   }
 
   const deleteMemory = async (id: string) => {
-    await supabase.from('agent_memory').delete().eq('id', id)
+    const item = mem.find(m => m.id === id)
+    if (!item || item.business_agent_id !== agent.id) { showMsg('Unauthorized', 'error'); return }
+    await supabase.from('agent_memory').delete().eq('id', id).eq('business_agent_id', agent.id as string)
     setMem(prev => prev.filter(m => m.id !== id))
   }
 
@@ -157,13 +199,17 @@ export default function ManageClient({
   }
 
   const removeTeam = async (id: string) => {
-    await supabase.from('team_members').delete().eq('id', id)
+    const item = tm.find(t => t.id === id)
+    if (!item || item.business_agent_id !== agent.id) { showMsg('Unauthorized', 'error'); return }
+    await supabase.from('team_members').delete().eq('id', id).eq('business_agent_id', agent.id as string)
     setTm(prev => prev.filter(t => t.id !== id))
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (!file.type.startsWith('image/')) { showMsg('Please upload an image file (PNG, JPG, GIF, WebP).', 'error'); e.target.value = ''; return }
+    if (file.size > 2 * 1024 * 1024) { showMsg('Image must be under 2MB.', 'error'); e.target.value = ''; return }
     setUploadingAvatar(true)
     const ext = file.name.split('.').pop()
     const fileName = `${agent.id}-${Date.now()}.${ext}`
@@ -200,6 +246,20 @@ export default function ManageClient({
   return (
     <div className="app-layout">
       <Sidebar />
+
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px 32px', maxWidth: 380, width: '100%' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: 'var(--sidebar-font)', marginBottom: 20 }}>{confirmDialog.message}</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null) }} className="btn btn-danger" style={{ flex: 1, fontSize: 13 }}>Confirm</button>
+              <button onClick={() => setConfirmDialog(null)} className="btn btn-outline" style={{ flex: 1, fontSize: 13 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="app-main">
         <div className="app-header">
           <button onClick={() => router.push(`/agent/${agent.id as string}`)} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
@@ -226,6 +286,7 @@ export default function ManageClient({
               { key: 'memory', label: `Memory (${mem.length})` },
               { key: 'team', label: `Team (${tm.length})` },
               { key: 'portal', label: 'Portal Settings' },
+              { key: 'conversations', label: 'Conversations' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 style={{ fontFamily: 'var(--sidebar-font)', fontSize: 12, padding: '8px 18px', borderRadius: 8, cursor: 'pointer', border: 'none', background: activeTab === tab.key ? 'var(--fg)' : 'transparent', color: activeTab === tab.key ? 'var(--bg)' : 'var(--fg3)', transition: 'all 0.15s', fontWeight: activeTab === tab.key ? 600 : 400 }}>
@@ -297,7 +358,7 @@ export default function ManageClient({
                           {(k.content as string)?.slice(0, 120)}{(k.content as string)?.length > 120 ? '...' : ''}
                         </p>
                       </div>
-                      <button onClick={() => deleteKb(k.id as string)} className="btn btn-danger btn-sm" style={{ flexShrink: 0, fontFamily: 'var(--sidebar-font)' }}>Delete</button>
+                      <button onClick={() => confirmThen(`Delete "${k.title as string}"?`, () => deleteKb(k.id as string))} className="btn btn-danger btn-sm" style={{ flexShrink: 0, fontFamily: 'var(--sidebar-font)' }}>Delete</button>
                     </div>
                   ))}
                 </div>
@@ -366,7 +427,7 @@ export default function ManageClient({
                       <div key={c.id as string} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sidebar-font)', fontSize: 16, fontWeight: 700, color: 'var(--fg2)' }}>{(c.name as string)?.[0]}</div>
-                          <button onClick={() => deleteContact(c.id as string)} className="btn btn-danger btn-sm" style={{ fontSize: 10 }}>Remove</button>
+                          <button onClick={() => confirmThen(`Remove ${c.name as string}?`, () => deleteContact(c.id as string))} className="btn btn-danger btn-sm" style={{ fontSize: 10 }}>Remove</button>
                         </div>
                         <div style={{ fontFamily: 'var(--sidebar-font)', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{c.name as string}</div>
                         {c.company && <div style={{ fontSize: 12, color: 'var(--fg3)', fontFamily: 'var(--sidebar-font)' }}>{c.company as string}</div>}
@@ -402,7 +463,7 @@ export default function ManageClient({
                         <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--sidebar-font)' }}>{m.key as string}:</span>
                         <span style={{ fontSize: 13, color: 'var(--fg3)', marginLeft: 6, fontFamily: 'var(--sidebar-font)' }}>{m.value as string}</span>
                       </div>
-                      <button onClick={() => deleteMemory(m.id as string)} className="btn btn-danger btn-sm" style={{ flexShrink: 0, fontSize: 11, fontFamily: 'var(--sidebar-font)' }}>Delete</button>
+                      <button onClick={() => confirmThen(`Delete memory "${m.key as string}"?`, () => deleteMemory(m.id as string))} className="btn btn-danger btn-sm" style={{ flexShrink: 0, fontSize: 11, fontFamily: 'var(--sidebar-font)' }}>Delete</button>
                     </div>
                   ))}
                 </div>
@@ -437,9 +498,62 @@ export default function ManageClient({
                           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg3)' }}>{t.role as string} · {t.status as string}</div>
                         </div>
                       </div>
-                      <button onClick={() => removeTeam(t.id as string)} className="btn btn-danger btn-sm" style={{ fontFamily: 'var(--sidebar-font)', fontSize: 11 }}>Remove</button>
+                      <button onClick={() => confirmThen(`Remove ${t.email as string} from team?`, () => removeTeam(t.id as string))} className="btn btn-danger btn-sm" style={{ fontFamily: 'var(--sidebar-font)', fontSize: 11 }}>Remove</button>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'conversations' && (
+            <div>
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                <p style={{ fontSize: 13, color: 'var(--fg3)', lineHeight: 1.7, fontFamily: 'var(--sidebar-font)' }}>
+                  Customer conversations from your public portal. Each row shows a chat session with message count and preview.
+                </p>
+              </div>
+              {convosLoading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg3)', fontFamily: 'var(--mono)', fontSize: 13 }}>Loading conversations...</div>
+              ) : convos.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-title" style={{ fontFamily: 'var(--sidebar-font)' }}>No conversations yet</div>
+                  <div className="empty-state-desc" style={{ fontFamily: 'var(--sidebar-font)' }}>When customers chat on your portal, their conversations will appear here.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {convos.map(c => {
+                    const msgs = (c.messages as { role: string; content: string }[]) || []
+                    const firstUserMsg = msgs.find(m => m.role === 'user')
+                    const isExpanded = expandedConvo === (c.id as string)
+                    return (
+                      <div key={c.id as string} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                        <button onClick={() => setExpandedConvo(isExpanded ? null : (c.id as string))}
+                          style={{ width: '100%', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', gap: 12, textAlign: 'left' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--fg3)' }}>{new Date(c.updated_at as string).toLocaleString()}</span>
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'var(--bg4)', color: 'var(--fg3)' }}>{msgs.length} messages</span>
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--fg2)', fontFamily: 'var(--sidebar-font)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {firstUserMsg?.content?.slice(0, 100) || 'No messages'}
+                            </div>
+                          </div>
+                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0, color: 'var(--fg3)' }}><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        {isExpanded && (
+                          <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {msgs.map((m, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '3px 8px', borderRadius: 6, background: m.role === 'user' ? 'var(--bg4)' : '#0d2e14', color: m.role === 'user' ? 'var(--fg3)' : '#4ade80', flexShrink: 0, marginTop: 2 }}>{m.role}</span>
+                                <span style={{ fontSize: 13, color: 'var(--fg)', lineHeight: 1.6, fontFamily: 'var(--sidebar-font)' }}>{m.content}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -510,7 +624,19 @@ export default function ManageClient({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <input type="color" value={portalSettings.portal_color} onChange={e => setPortalSettings(prev => ({ ...prev, portal_color: e.target.value }))}
                     style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid var(--border2)', cursor: 'pointer', padding: 2, background: 'var(--bg3)' }} />
-                  <input style={{ ...inputStyle, width: 140, fontFamily: 'var(--mono)' }} value={portalSettings.portal_color} onChange={e => setPortalSettings(prev => ({ ...prev, portal_color: e.target.value }))} placeholder="#c8f135" />
+                  <input style={{ ...inputStyle, width: 140, fontFamily: 'var(--mono)' }} value={portalSettings.portal_color}
+                    onChange={e => {
+                      const val = e.target.value
+                      setPortalSettings(prev => ({ ...prev, portal_color: val }))
+                      if (val && !/^#[0-9A-Fa-f]{0,6}$/.test(val)) showMsg('Enter a valid hex color (e.g. #c8f135)', 'error')
+                    }}
+                    onBlur={e => {
+                      if (!/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                        setPortalSettings(prev => ({ ...prev, portal_color: '#c8f135' }))
+                        showMsg('Invalid color — reset to default.', 'error')
+                      }
+                    }}
+                    placeholder="#c8f135" />
                 </div>
               </div>
 

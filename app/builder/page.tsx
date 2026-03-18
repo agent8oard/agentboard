@@ -129,9 +129,8 @@ export default function BuilderPage() {
             background: 'var(--fg)', color: 'var(--bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 24px',
-            fontSize: 24,
           }}>
-            🔒
+            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
           <h2 style={{ fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 400, marginBottom: 12 }}>
             Sign in to build your agent

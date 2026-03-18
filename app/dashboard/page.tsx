@@ -167,8 +167,24 @@ export default function DashboardPage() {
     <div className="app-layout">
       <Sidebar />
       <main className="app-main">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--fg3)' }}>Loading...</span>
+        <div className="app-header">
+          <span className="page-title">Dashboard</span>
+        </div>
+        <div className="dashboard-content" style={{ width: '100%', padding: '40px 48px' }}>
+          <style>{`
+            @keyframes shimmer { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
+            .skeleton { background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
+          `}</style>
+          {/* Banner skeleton */}
+          <div className="skeleton" style={{ height: 110, borderRadius: 12, marginBottom: 28 }} />
+          {/* Stats skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
+            {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 90, borderRadius: 12 }} />)}
+          </div>
+          {/* Agent cards skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+            {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 180, borderRadius: 16 }} />)}
+          </div>
         </div>
       </main>
     </div>

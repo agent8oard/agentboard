@@ -4,11 +4,14 @@ import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { useRouter } from 'next/navigation'
 
+const VALID_TABS = ['profile', 'security', 'billing', 'privacy'] as const
+type Tab = typeof VALID_TABS[number]
+
 export default function SettingsPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing' | 'privacy'>('profile')
+  const [activeTab, setActiveTab] = useState<Tab>('profile')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState<'success' | 'error'>('success')
@@ -30,6 +33,10 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
+    // Restore active tab from URL hash
+    const hash = window.location.hash.replace('#', '') as Tab
+    if (VALID_TABS.includes(hash)) setActiveTab(hash)
+
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth'); return }
@@ -44,6 +51,11 @@ export default function SettingsPage() {
     }
     load()
   }, [])
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab)
+    window.history.replaceState(null, '', `#${tab}`)
+  }
 
   const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
     setMsg(text); setMsgType(type)
@@ -80,8 +92,25 @@ export default function SettingsPage() {
 
   const deleteAccount = async () => {
     if (deleteConfirm !== 'delete my account') return
-    showMsg('Account deletion requested. Contact support to complete.', 'error')
-    setShowDeleteModal(false)
+    setSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      const json = await res.json()
+      if (json.error) {
+        showMsg(`Deletion failed: ${json.error}`, 'error')
+        setSaving(false)
+        return
+      }
+      await supabase.auth.signOut()
+      router.push('/?deleted=1')
+    } catch {
+      showMsg('Something went wrong. Please try again.', 'error')
+      setSaving(false)
+    }
   }
 
   const signOut = async () => {
@@ -139,11 +168,11 @@ export default function SettingsPage() {
               <input style={inputStyle} value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} placeholder="delete my account" />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={deleteAccount} disabled={deleteConfirm !== 'delete my account'}
+              <button onClick={deleteAccount} disabled={deleteConfirm !== 'delete my account' || saving}
                 style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, background: deleteConfirm === 'delete my account' ? '#7f1d1d' : 'var(--bg3)', color: deleteConfirm === 'delete my account' ? '#fca5a5' : 'var(--muted)' }}>
-                Delete permanently
+                {saving ? 'Deleting...' : 'Delete permanently'}
               </button>
-              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm('') }} className="btn btn-outline" style={{ fontSize: 13 }}>Cancel</button>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm('') }} disabled={saving} className="btn btn-outline" style={{ fontSize: 13 }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -185,7 +214,7 @@ export default function SettingsPage() {
               { key: 'billing', label: 'Billing', icon: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg> },
               { key: 'privacy', label: 'Privacy', icon: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
             ].map(item => (
-              <button key={item.key} onClick={() => setActiveTab(item.key as any)} style={{ ...tabStyle(item.key), display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+              <button key={item.key} onClick={() => switchTab(item.key as Tab)} style={{ ...tabStyle(item.key), display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
                 {item.icon} {item.label}
               </button>
             ))}

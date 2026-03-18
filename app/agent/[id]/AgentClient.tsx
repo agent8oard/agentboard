@@ -121,7 +121,11 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
   const viewDocument = async (documentId: string, documentType: string, inlineHTML?: string) => {
     if (inlineHTML) { setPreviewDoc({ html: inlineHTML, type: documentType }); return }
     const { data } = await supabase.from('documents').select('*').eq('id', documentId).single()
-    if (data) setPreviewDoc({ html: (data.metadata as Record<string, unknown>)?.invoiceHTML as string || data.content as string, type: documentType })
+    if (data) {
+      const html = (data.metadata as Record<string, unknown>)?.invoiceHTML as string | undefined
+        || data.content as string | undefined
+      if (html) setPreviewDoc({ html, type: documentType })
+    }
   }
 
   const deleteEvent = async (id: string) => {
@@ -146,6 +150,7 @@ export default function AgentClient({ agent }: { agent: Record<string, unknown> 
     if (!time) return ''
     const parts = time.split(':')
     const h = parseInt(parts[0])
+    if (isNaN(h)) return ''
     const m = parts[1] ? parts[1].padStart(2, '0') : '00'
     return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`
   }

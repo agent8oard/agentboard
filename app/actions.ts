@@ -25,7 +25,7 @@ export async function sendProposalNotification(taskId: string, message: string, 
 
     await resend.emails.send({
       from: 'AgentBoard <onboarding@resend.dev>',
-      to: 'YOUR_RESEND_SIGNUP_EMAIL',
+      to: process.env.ADMIN_EMAIL || ownerEmail,
       subject: `New proposal on: ${task.title}`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
