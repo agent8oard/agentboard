@@ -25,9 +25,24 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
     },
     show: false,
     icon: path.join(__dirname, '../public/icons/icon.png'),
+  })
+
+  // Strip headers that block iframe embedding so the Browser panel can load any site
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders }
+    delete headers['x-frame-options']
+    delete headers['X-Frame-Options']
+    delete headers['content-security-policy']
+    delete headers['Content-Security-Policy']
+    delete headers['content-security-policy-report-only']
+    delete headers['Content-Security-Policy-Report-Only']
+    delete headers['X-Content-Type-Options']
+    callback({ responseHeaders: headers })
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -79,9 +94,24 @@ function createDesktopModeWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
     },
     show: false,
     icon: path.join(__dirname, '../public/icons/icon.png'),
+  })
+
+  // Strip headers that block iframe embedding so the Browser panel can load any site
+  desktopModeWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders }
+    delete headers['x-frame-options']
+    delete headers['X-Frame-Options']
+    delete headers['content-security-policy']
+    delete headers['Content-Security-Policy']
+    delete headers['content-security-policy-report-only']
+    delete headers['Content-Security-Policy-Report-Only']
+    delete headers['X-Content-Type-Options']
+    callback({ responseHeaders: headers })
   })
 
   desktopModeWindow.maximize()

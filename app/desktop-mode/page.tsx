@@ -934,6 +934,7 @@ function BrowserContent() {
   const [url, setUrl] = useState(HOME_URL)
   const [inputVal, setInputVal] = useState(HOME_URL)
   const [blocked, setBlocked] = useState(false)
+  const [loading, setLoading] = useState(true)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const navigate = (target: string) => {
@@ -941,6 +942,7 @@ function BrowserContent() {
     setUrl(resolved)
     setInputVal(resolved)
     setBlocked(false)
+    setLoading(true)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -974,6 +976,17 @@ function BrowserContent() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d0d0d' }}>
+
+      {/* Loading bar */}
+      <div style={{ height: 2, background: '#0d0d0d', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
+        {loading && !blocked && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, height: '100%',
+            background: '#c8f135',
+            animation: 'browserLoad 1.4s ease-in-out infinite',
+          }} />
+        )}
+      </div>
 
       {/* URL bar */}
       <div style={{ padding: '7px 10px', borderBottom: '1px solid #1a1a1a', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1055,9 +1068,11 @@ function BrowserContent() {
           src={url}
           style={{ flex: 1, border: 'none', width: '100%', background: '#fff', display: 'block' }}
           title="Browser"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+          allow="same-origin scripts forms navigation popups fullscreen"
+          referrerPolicy="no-referrer"
           allowFullScreen
-          onError={() => setBlocked(true)}
+          onLoad={() => setLoading(false)}
+          onError={() => { setBlocked(true); setLoading(false) }}
         />
       )}
     </div>
@@ -1740,6 +1755,7 @@ function DesktopModeInner() {
     <div style={{ background: '#080808', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes browserLoad { 0%{left:-40%;width:40%} 60%{left:40%;width:60%} 100%{left:100%;width:40%} }
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
