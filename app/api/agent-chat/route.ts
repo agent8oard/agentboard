@@ -434,6 +434,7 @@ End with a numbered summary of everything completed.`
     if (orderMatch) {
       try {
         const raw = orderMatch[1]
+        console.log('[CREATE_ORDER] raw marker:', raw)
         const parts = raw.split(':')
         const clientName = parts[0]?.trim() || ''
         const clientEmail = parts[1]?.trim() || ''
@@ -443,23 +444,24 @@ End with a numbered summary of everything completed.`
         const notes = parts[5]?.trim() || ''
         const remainder = parts.slice(6).join(':')
         const remainderParts = remainder.split(':')
-        const grandtotal = parseFloat(remainderParts[remainderParts.length - 1]) || 0
-        const discount = parseFloat(remainderParts[remainderParts.length - 2]) || 0
-        const delivery = parseFloat(remainderParts[remainderParts.length - 3]) || 0
-        const tax = parseFloat(remainderParts[remainderParts.length - 4]) || 0
-        const subtotal = parseFloat(remainderParts[remainderParts.length - 5]) || 0
+        const grandtotal = parseFloat(remainderParts[remainderParts.length - 1]?.replace(/[^0-9.]/g, '')) || 0
+        const discount = parseFloat(remainderParts[remainderParts.length - 2]?.replace(/[^0-9.]/g, '')) || 0
+        const delivery = parseFloat(remainderParts[remainderParts.length - 3]?.replace(/[^0-9.]/g, '')) || 0
+        const tax = parseFloat(remainderParts[remainderParts.length - 4]?.replace(/[^0-9.]/g, '')) || 0
+        const subtotal = parseFloat(remainderParts[remainderParts.length - 5]?.replace(/[^0-9.]/g, '')) || 0
         const itemsStr = remainderParts.slice(0, remainderParts.length - 5).join(':')
         const items = itemsStr.split('&&').filter((i: string) => i.trim()).map((item: string) => {
           const p = item.split('|')
           return {
             description: p[0]?.trim() || '',
-            quantity: parseFloat(p[1]) || 1,
-            unit_price: parseFloat(p[2]) || 0,
-            total: parseFloat(p[3]) || 0,
+            quantity: parseFloat(p[1]?.replace(/[^0-9.]/g, '')) || 1,
+            unit_price: parseFloat(p[2]?.replace(/[^0-9.]/g, '')) || 0,
+            total: parseFloat(p[3]?.replace(/[^0-9.]/g, '')) || 0,
           }
         })
-        const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
-        await supabase.from('orders').insert({
+        const orderNumber = `ORD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`
+        console.log('[CREATE_ORDER] inserting:', { orderNumber, clientName, status, subtotal, tax, delivery, discount, grandtotal, items })
+        const { error: orderError } = await supabase.from('orders').insert({
           business_agent_id: safeAgent.id,
           order_number: orderNumber,
           client_name: clientName,
@@ -470,9 +472,11 @@ End with a numbered summary of everything completed.`
           notes: notes || null,
           due_date: orderDueDate || null,
         })
+        if (orderError) console.error('[CREATE_ORDER] insert failed:', orderError)
+        else console.log('[CREATE_ORDER] inserted successfully:', orderNumber)
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       } catch (e) {
-        console.error('Order error:', e)
+        console.error('[CREATE_ORDER] exception:', e)
         reply = reply.replace(/\[CREATE_ORDER:[^\]]+\]/g, '').trim()
       }
     }

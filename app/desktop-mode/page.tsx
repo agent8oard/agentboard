@@ -79,7 +79,7 @@ const STORAGE_KEY = 'agentboard-desktop-v3'
 const MIN_W = 280
 const MIN_H = 200
 const HEADER_H = 40
-const TOOLBAR_H = 52
+const TOOLBAR_H = 68
 
 const HANDLE_CURSORS: Record<ResizeHandle, string> = {
   n: 'n-resize', s: 's-resize', e: 'e-resize', w: 'w-resize',
@@ -112,6 +112,121 @@ function Empty({ label }: { label: string }) {
   return (
     <div style={{ textAlign: 'center', color: '#3a3a3a', fontFamily: 'var(--mono)', fontSize: 11, padding: '32px 16px' }}>
       {label}
+    </div>
+  )
+}
+
+// ─── Flip Clock ───────────────────────────────────────────────────────────────
+
+function FlipDigit({ digit }: { digit: string }) {
+  const [display, setDisplay] = useState(digit)
+  const [phase, setPhase] = useState<'idle' | 'out' | 'in'>('idle')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRef = useRef(digit)
+
+  useEffect(() => {
+    if (digit === display) return
+    pendingRef.current = digit
+    if (phase === 'idle') {
+      setPhase('out')
+      timerRef.current = setTimeout(() => {
+        setDisplay(pendingRef.current)
+        setPhase('in')
+        timerRef.current = setTimeout(() => setPhase('idle'), 100)
+      }, 100)
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [digit])
+
+  const transform =
+    phase === 'out' ? 'rotateX(-90deg) scale(0.95)' :
+    phase === 'in'  ? 'rotateX(0deg) scale(1)' :
+    'rotateX(0deg) scale(1)'
+
+  const transition =
+    phase === 'out' ? 'transform 0.1s ease-in, opacity 0.1s ease-in' :
+    phase === 'in'  ? 'transform 0.1s ease-out, opacity 0.1s ease-out' :
+    'none'
+
+  return (
+    <div style={{ perspective: 600, width: 32, height: 46, flexShrink: 0 }}>
+      <div style={{
+        width: '100%', height: '100%',
+        background: 'linear-gradient(180deg, #1e1e1e 0%, #161616 100%)',
+        border: '1px solid #2e2e2e',
+        borderRadius: 6,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: '"Courier New", Courier, monospace',
+        fontVariantNumeric: 'tabular-nums',
+        fontSize: 26,
+        fontWeight: 700,
+        color: '#c8f135',
+        letterSpacing: -1,
+        transform,
+        transition,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Center divider line */}
+        <div style={{
+          position: 'absolute',
+          left: 0, right: 0,
+          top: '50%',
+          height: 1,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 1,
+          pointerEvents: 'none',
+        }} />
+        {display}
+      </div>
+    </div>
+  )
+}
+
+function FlipColon() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 6, height: 46, width: 14, flexShrink: 0, paddingBottom: 2,
+    }}>
+      <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#3a3a3a' }} />
+      <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#3a3a3a' }} />
+    </div>
+  )
+}
+
+function FlipClock() {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 200)
+    return () => clearInterval(t)
+  }, [])
+
+  const h = now.getHours().toString().padStart(2, '0')
+  const m = now.getMinutes().toString().padStart(2, '0')
+  const s = now.getSeconds().toString().padStart(2, '0')
+  const dayName = now.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <FlipDigit digit={h[0]} />
+        <FlipDigit digit={h[1]} />
+        <FlipColon />
+        <FlipDigit digit={m[0]} />
+        <FlipDigit digit={m[1]} />
+        <FlipColon />
+        <FlipDigit digit={s[0]} />
+        <FlipDigit digit={s[1]} />
+      </div>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: '#3a3a3a', letterSpacing: 1 }}>
+        {dayName} · {dateStr}
+      </div>
     </div>
   )
 }
@@ -398,13 +513,13 @@ function ContactsContent({ agentId }: { agentId: string }) {
 // ─── Panel: Orders ────────────────────────────────────────────────────────────
 
 function OrdersContent({ agentId }: { agentId: string }) {
-  const [orders, setOrders] = useState<{ id: string; client_name: string; status: string; grand_total?: number; created_at: string; order_number?: string }[]>([])
+  const [orders, setOrders] = useState<{ id: string; client_name: string; status: string; total?: number; created_at: string; order_number?: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const { data } = await supabase.from('orders').select('id, client_name, status, grand_total, created_at, order_number')
+      const { data } = await supabase.from('orders').select('id, client_name, status, total, created_at, order_number')
         .eq('business_agent_id', agentId).order('created_at', { ascending: false }).limit(40)
       setOrders(data || [])
       setLoading(false)
@@ -434,7 +549,7 @@ function OrdersContent({ agentId }: { agentId: string }) {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              {o.grand_total != null && <span style={{ fontSize: 13, fontWeight: 700, color: '#eee' }}>${Number(o.grand_total).toFixed(2)}</span>}
+              {o.total != null && <span style={{ fontSize: 13, fontWeight: 700, color: '#eee' }}>${Number(o.total).toFixed(2)}</span>}
               <span style={{ fontFamily: 'var(--mono)', fontSize: 9, padding: '2px 7px', borderRadius: 4, background: bg, color, textTransform: 'uppercase' }}>{o.status}</span>
             </div>
           </div>
@@ -1080,7 +1195,6 @@ function DesktopModeInner() {
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
-  const [time, setTime] = useState(new Date())
   const [panels, setPanels] = useState<PanelInstance[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -1120,12 +1234,6 @@ function DesktopModeInner() {
       router.replace('/dashboard')
     }
   }, [router])
-
-  // ── Clock ───────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(t)
-  }, [])
 
   // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1529,6 +1637,13 @@ function DesktopModeInner() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Center: Flip Clock */}
+        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <FlipClock />
+        </div>
+
+        <div style={{ flex: 1 }} />
+
         {/* Right actions */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
 
@@ -1553,15 +1668,6 @@ function DesktopModeInner() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#888' }}>
             Reset
           </button>
-
-          <div style={{ width: 1, height: 18, background: '#222' }} />
-
-          {/* Clock */}
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#3a3a3a', letterSpacing: 0.3, flexShrink: 0 }}>
-            {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            {' '}
-            <span style={{ color: '#666' }}>{time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-          </div>
 
           <div style={{ width: 1, height: 18, background: '#222' }} />
 

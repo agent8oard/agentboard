@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { useRouter } from 'next/navigation'
@@ -23,10 +23,30 @@ export default function OrdersClient({ agent, orders }: {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null)
   const [updating, setUpdating] = useState(false)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     document.title = `Orders — ${agent.business_name as string} | AgentBoard`
   }, [])
+
+  // Real-time subscription for new orders
+  useEffect(() => {
+    const agentId = agent.id as string
+    channelRef.current = supabase
+      .channel(`orders-${agentId}`)
+      .on(
+        'postgres_changes' as Parameters<ReturnType<typeof supabase.channel>['on']>[0],
+        { event: '*', schema: 'public', table: 'orders', filter: `business_agent_id=eq.${agentId}` },
+        async () => {
+          const { data } = await supabase.from('orders').select('*').eq('business_agent_id', agentId).order('created_at', { ascending: false })
+          if (data) setAllOrders(data)
+        }
+      )
+      .subscribe()
+    return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current).catch(() => {})
+    }
+  }, [agent.id])
 
   const statuses = ['ALL', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled']
   const searchLower = search.toLowerCase()
