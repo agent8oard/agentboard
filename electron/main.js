@@ -3,8 +3,14 @@ const path = require('path')
 
 nativeTheme.themeSource = 'dark'
 
-const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_DEV === '1'
+const isDev = !app.isPackaged
 const PORT = process.env.PORT || 3000
+
+const PROD_URL = 'https://agentboard-five.vercel.app'
+function getURL(path = '') {
+  if (isDev) return `http://localhost:${PORT}${path}`
+  return `${PROD_URL}${path}`
+}
 
 let mainWindow = null
 let desktopModeWindow = null
@@ -20,6 +26,7 @@ function createWindow() {
     title: 'AgentBoard',
     backgroundColor: '#0a0a0a',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    fullscreenable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -50,9 +57,8 @@ function createWindow() {
     if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' })
   })
 
-  const url = `http://localhost:${PORT}`
-  mainWindow.loadURL(url).catch(() => {
-    setTimeout(() => mainWindow?.loadURL(url), 1000)
+  mainWindow.loadURL(getURL()).catch(() => {
+    setTimeout(() => mainWindow?.loadURL(getURL()), 1000)
   })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -89,6 +95,7 @@ function createDesktopModeWindow() {
     title: 'AgentBoard — Desktop Mode',
     backgroundColor: '#0a0a0a',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    fullscreenable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -120,7 +127,7 @@ function createDesktopModeWindow() {
     desktopModeWindow.show()
   })
 
-  desktopModeWindow.loadURL(`http://localhost:${PORT}/desktop-mode`)
+  desktopModeWindow.loadURL(getURL('/desktop-mode'))
 
   desktopModeWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
@@ -156,6 +163,11 @@ ipcMain.on('close-window', (event) => {
 
 ipcMain.handle('get-version', () => app.getVersion())
 
+ipcMain.handle('maximize-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) win.maximize()
+})
+
 // ─── Application menu ─────────────────────────────────────────────────────
 
 function buildMenu() {
@@ -171,12 +183,12 @@ function buildMenu() {
       {
         label: 'Dashboard',
         accelerator: 'CmdOrCtrl+D',
-        click: () => mainWindow?.loadURL(`http://localhost:${PORT}/dashboard`),
+        click: () => mainWindow?.loadURL(getURL('/dashboard')),
       },
       {
         label: 'New Agent',
         accelerator: 'CmdOrCtrl+N',
-        click: () => mainWindow?.loadURL(`http://localhost:${PORT}/builder`),
+        click: () => mainWindow?.loadURL(getURL('/builder')),
       },
       { type: 'separator' },
       process.platform === 'darwin' ? { role: 'close' } : { role: 'quit', label: 'Exit AgentBoard' },
@@ -305,10 +317,16 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
+const prodHostname = new URL(PROD_URL).hostname
+
 app.on('web-contents-created', (_, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl)
-    if (parsedUrl.hostname !== 'localhost' && parsedUrl.hostname !== '127.0.0.1') {
+    const allowed =
+      parsedUrl.hostname === 'localhost' ||
+      parsedUrl.hostname === '127.0.0.1' ||
+      parsedUrl.hostname === prodHostname
+    if (!allowed) {
       event.preventDefault()
       shell.openExternal(navigationUrl)
     }
