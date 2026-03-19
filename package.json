@@ -1,6 +1,6 @@
 {
   "name": "agentboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered business automation platform",
   "author": "AgentBoard",
   "private": true,
@@ -21,6 +21,7 @@
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.1",
     "@types/papaparse": "^5.5.2",
+    "electron-updater": "^6.8.3",
     "next": "^16.1.6",
     "papaparse": "^5.5.3",
     "react": "19.2.3",
@@ -65,7 +66,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icons/icon.png",
@@ -83,7 +86,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "public/icons/icon.png",
@@ -96,14 +102,27 @@
       "icon": "public/icons/icon.png",
       "iconSize": 80,
       "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ]
     },
     "linux": {
       "target": "AppImage",
       "icon": "public/icons/icon.png",
       "category": "Office"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "agent8oard",
+      "repo": "agentboard"
     }
   }
 }

@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Desktop mode
   openDesktopMode: () => ipcRenderer.send('open-desktop-mode'),
   closeWindow: () => ipcRenderer.send('close-window'),
+  maximize: () => ipcRenderer.invoke('maximize-window'),
 })

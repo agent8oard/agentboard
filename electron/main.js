@@ -1,7 +1,70 @@
-const { app, BrowserWindow, shell, Menu, nativeTheme, ipcMain, globalShortcut } = require('electron')
+const { app, BrowserWindow, shell, Menu, nativeTheme, ipcMain, globalShortcut, dialog } = require('electron')
 const path = require('path')
+const { autoUpdater } = require('electron-updater')
 
 nativeTheme.themeSource = 'dark'
+
+// ─── Auto-updater ─────────────────────────────────────────────────────────────
+
+autoUpdater.logger = console
+autoUpdater.autoDownload = false
+
+autoUpdater.setFeedURL({
+  provider: 'github',
+  owner: 'agent8oard',
+  repo: 'agentboard',
+})
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('[updater] Checking for update...')
+})
+
+autoUpdater.on('update-available', (info) => {
+  console.log('[updater] Update available:', info.version)
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Available',
+    message: `AgentBoard ${info.version} is available.`,
+    detail: 'Do you want to download and install it now?',
+    buttons: ['Yes, Update Now', 'Later'],
+    defaultId: 0,
+    cancelId: 1,
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.downloadUpdate()
+  })
+})
+
+autoUpdater.on('update-not-available', () => {
+  console.log('[updater] No update available.')
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  console.log(`[updater] Download progress: ${Math.round(progress.percent)}%`)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setProgressBar(progress.percent / 100)
+  }
+})
+
+autoUpdater.on('update-downloaded', () => {
+  console.log('[updater] Update downloaded.')
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setProgressBar(-1)
+  }
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Restart Required',
+    message: 'Update ready. Restart now to apply?',
+    buttons: ['Yes, Restart', 'No'],
+    defaultId: 0,
+    cancelId: 1,
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.quitAndInstall()
+  })
+})
+
+autoUpdater.on('error', (err) => {
+  console.error('[updater] Error:', err)
+})
 
 const isDev = !app.isPackaged
 const PORT = process.env.PORT || 3000
@@ -300,6 +363,13 @@ function buildMenu() {
 app.whenReady().then(() => {
   buildMenu()
   createWindow()
+
+  // Check for updates silently on launch (packaged builds only)
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[updater] checkForUpdates error:', err)
+    })
+  }
 
   // Register global shortcut as backup (works even when menu is hidden)
   globalShortcut.register('CmdOrCtrl+Shift+M', toggleDesktopMode)
