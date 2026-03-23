@@ -11,7 +11,7 @@ autoUpdater.autoDownload = false
 
 autoUpdater.setFeedURL({
   provider: 'github',
-  owner: 'agent8oard',
+  owner: 'Crackdealer2001',
   repo: 'agentboard',
 })
 
