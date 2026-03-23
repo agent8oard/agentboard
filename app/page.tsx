@@ -1,31 +1,11 @@
-"use client";
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-
 export default function HomePage() {
-  const router = useRouter();
-  const redirected = useRef(false);
-
-  useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted || redirected.current) return;
-      if (data.session) {
-        redirected.current = true;
-        router.replace("/dashboard");
-      }
-    });
-    return () => { mounted = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <div style={{ minHeight: "100vh", background: "#ffffff" }}>
       {/* Nav */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", borderBottom: "1px solid #e5e7eb" }}>
         <span style={{ fontWeight: 700, fontSize: 20, color: "#0a0a0a" }}>Scope</span>
         <div style={{ display: "flex", gap: 12 }}>
-          <a href="/auth" style={{ padding: "8px 18px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "#0a0a0a" }}>Sign in</a>
+          <a href="/dashboard" style={{ padding: "8px 18px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "#0a0a0a" }}>Dashboard</a>
           <a href="/auth" style={{ padding: "8px 18px", background: "#0a0a0a", color: "#fff", borderRadius: 8, fontSize: 14, fontWeight: 600 }}>Get started</a>
         </div>
       </nav>
