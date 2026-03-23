@@ -30,36 +30,43 @@ export default function Sidebar() {
     { label: "Settings", href: "/settings" },
   ];
 
-  const sidebarStyle: React.CSSProperties = {
-    width: 220,
-    minHeight: "100vh",
-    background: "var(--surface)",
-    borderRight: "1px solid var(--border)",
-    display: "flex",
-    flexDirection: "column",
-    padding: "24px 0",
-    flexShrink: 0,
-  };
-
   return (
-    <aside style={sidebarStyle}>
-      <div style={{ padding: "0 20px 24px", borderBottom: "1px solid var(--border)" }}>
-        <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)" }}>Scope</span>
+    <aside style={{ width: 220, minHeight: "100vh", background: "var(--surface)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{ padding: "28px 24px", borderBottom: "1px solid var(--border)" }}>
+        <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", letterSpacing: "-0.03em" }}>Scope</span>
       </div>
-      <nav style={{ flex: 1, padding: "16px 12px" }}>
+      <nav style={{ flex: 1, padding: "24px 0" }}>
         {nav.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
-            <a key={item.href} href={item.href} style={{ display: "block", padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: active ? 600 : 400, color: active ? "var(--text)" : "var(--text3)", background: active ? "var(--bg3)" : "transparent", marginBottom: 2 }}>
+            <a
+              key={item.href}
+              href={item.href}
+              style={{
+                display: "block",
+                padding: "10px 24px",
+                fontSize: 14,
+                fontWeight: active ? 700 : 400,
+                color: active ? "var(--text)" : "var(--text3)",
+                background: "transparent",
+                borderLeft: active ? "3px solid var(--text)" : "3px solid transparent",
+                letterSpacing: active ? "-0.01em" : "normal",
+              }}
+            >
               {item.label}
             </a>
           );
         })}
       </nav>
-      <div style={{ padding: "12px 20px 8px", borderTop: "1px solid var(--border)" }}>
-        <div style={{ fontSize: 12, color: "var(--text4)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</div>
+      <div style={{ padding: "20px 24px", borderTop: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 11, color: "var(--text4)", marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{email}</div>
         <DarkModeToggle />
-        <button onClick={signOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 12px", fontSize: 13, color: "var(--text3)", cursor: "pointer", width: "100%", marginTop: 8 }}>Sign out</button>
+        <button
+          onClick={signOut}
+          style={{ background: "none", border: "1px solid var(--border)", padding: "8px 14px", fontSize: 13, color: "var(--text3)", cursor: "pointer", width: "100%", marginTop: 8, fontWeight: 500, letterSpacing: "0.01em" }}
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );

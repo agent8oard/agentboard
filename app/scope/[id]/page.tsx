@@ -32,31 +32,28 @@ interface Project {
   status: string;
 }
 
-const card: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: "28px 32px",
-  boxShadow: "var(--shadow)",
-  marginTop: 24,
+const label: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: "var(--text4)",
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  marginBottom: 20,
+  display: "block",
 };
 
-const sectionLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: "var(--text4)",
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  marginBottom: 16,
-  display: "block",
+const section: React.CSSProperties = {
+  borderTop: "1px solid var(--border)",
+  paddingTop: 40,
+  paddingBottom: 40,
 };
 
 function FadeIn({ children, show }: { children: React.ReactNode; show: boolean }) {
   return (
     <div style={{
       opacity: show ? 1 : 0,
-      transform: show ? "translateY(0)" : "translateY(8px)",
-      transition: "opacity 0.3s ease, transform 0.3s ease",
+      transform: show ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.4s ease, transform 0.4s ease",
     }}>
       {children}
     </div>
@@ -126,14 +123,14 @@ export default function ScopeProjectPage() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg2)" }}>
-      <p style={{ color: "var(--text4)", fontSize: 15 }}>Loading project...</p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+      <p style={{ color: "var(--text4)", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Loading...</p>
     </div>
   );
 
   if (!project) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg2)" }}>
-      <p style={{ color: "var(--text4)" }}>Project not found. <Link href="/scope" style={{ color: "var(--text)", fontWeight: 600 }}>Back to projects</Link></p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+      <p style={{ color: "var(--text4)" }}>Project not found. <Link href="/scope" style={{ color: "var(--text)", fontWeight: 700 }}>Back to projects</Link></p>
     </div>
   );
 
@@ -142,20 +139,19 @@ export default function ScopeProjectPage() {
   const isComplete = project.status === "complete";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg2)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <style>{`
         @media (max-width: 640px) {
-          .scope-body { padding: 16px !important; }
+          .scope-body { padding: 24px !important; }
           .analysis-cols { flex-direction: column !important; }
-          .header-right { gap: 8px !important; }
         }
-        details > summary { list-style: none; }
-        details > summary::-webkit-details-marker { display: none; }
+        .row-hover:hover { background: var(--bg2); }
+        .phase-btn:hover { background: var(--bg2) !important; }
       `}</style>
 
       {/* Sticky header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20, background: "var(--surface)", borderBottom: "1px solid var(--border)", height: 60, display: "flex", alignItems: "center", padding: "0 40px", gap: 12 }}>
-        <Link href="/scope" style={{ fontSize: 13, color: "var(--text4)", whiteSpace: "nowrap", flexShrink: 0 }}>← Projects</Link>
+      <div style={{ position: "sticky", top: 0, zIndex: 20, background: "var(--surface)", borderBottom: "1px solid var(--border)", height: 60, display: "flex", alignItems: "center", padding: "0 48px", gap: 16 }}>
+        <Link href="/scope" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", whiteSpace: "nowrap", flexShrink: 0 }}>← Projects</Link>
         <span style={{ color: "var(--border)", flexShrink: 0 }}>|</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           {editTitle ? (
@@ -165,24 +161,28 @@ export default function ScopeProjectPage() {
               onBlur={saveTitle}
               onKeyDown={(e) => e.key === "Enter" && saveTitle()}
               autoFocus
-              style={{ fontSize: 15, fontWeight: 600, border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", color: "var(--text)", background: "var(--surface)", outline: "none", width: "100%", maxWidth: 400 }}
+              style={{ fontSize: 15, fontWeight: 700, border: "1px solid var(--border)", padding: "4px 10px", color: "var(--text)", background: "var(--surface)", outline: "none", width: "100%", maxWidth: 400, letterSpacing: "-0.01em" }}
             />
           ) : (
             <button
               onClick={() => setEditTitle(true)}
-              style={{ background: "none", border: "none", fontSize: 15, fontWeight: 600, color: "var(--text)", cursor: "text", padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}
+              style={{ background: "none", border: "none", fontSize: 15, fontWeight: 700, color: "var(--text)", cursor: "text", padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", letterSpacing: "-0.01em" }}
             >
               {title || "Untitled project"}
-              <span style={{ fontSize: 11, color: "var(--border)", marginLeft: 6 }}>✎</span>
+              <span style={{ fontSize: 11, color: "var(--text4)", marginLeft: 8 }}>✎</span>
             </button>
           )}
         </div>
-        <div className="header-right" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 100, background: isComplete ? "var(--accent)" : "var(--bg3)", color: isComplete ? "var(--accent-text)" : "var(--text3)", fontWeight: 600, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <span style={{
+            fontSize: 10, padding: "3px 8px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+            background: isComplete ? "var(--accent)" : "var(--bg3)",
+            color: isComplete ? "var(--accent-text)" : "var(--text3)",
+          }}>
             {isComplete ? "Complete" : "Draft"}
           </span>
           {isComplete && (
-            <Link href={`/scope/${project.id}/proposal`} style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+            <Link href={`/scope/${project.id}/proposal`} style={{ background: "var(--accent)", color: "var(--accent-text)", padding: "8px 16px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", letterSpacing: "0.02em" }}>
               Generate proposal →
             </Link>
           )}
@@ -190,29 +190,28 @@ export default function ScopeProjectPage() {
       </div>
 
       {/* Body */}
-      <div className="scope-body" style={{ maxWidth: 900, margin: "0 auto", padding: "40px 24px 80px" }}>
+      <div className="scope-body" style={{ maxWidth: 860, margin: "0 auto", padding: "48px 48px 100px" }}>
 
         {/* Section 1 — Original enquiry */}
-        <div style={card}>
-          <span style={sectionLabel}>Client Enquiry</span>
+        <div style={section}>
+          <span style={label}>Client Enquiry</span>
           <div style={{ position: "relative" }}>
             <div style={{
               background: "var(--bg2)",
               border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "16px 20px",
+              padding: "20px 24px",
               fontSize: 15,
               lineHeight: 1.7,
               color: "var(--text2)",
               overflow: "hidden",
-              maxHeight: enquiryExpanded ? "none" : "6.8em",
+              maxHeight: enquiryExpanded ? "none" : "7em",
             }}>
               {project.original_enquiry}
             </div>
             {project.original_enquiry.length > 300 && (
               <button
                 onClick={() => setEnquiryExpanded(!enquiryExpanded)}
-                style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer", padding: "8px 0 0", fontWeight: 500 }}
+                style={{ background: "none", border: "none", fontSize: 12, color: "var(--text3)", cursor: "pointer", padding: "10px 0 0", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}
               >
                 {enquiryExpanded ? "Show less ↑" : "Show more ↓"}
               </button>
@@ -221,56 +220,55 @@ export default function ScopeProjectPage() {
         </div>
 
         {/* Section 2 — Analysis */}
-        <div style={card}>
-          <span style={sectionLabel}>Analysis</span>
-          {/* Chips row */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+        <div style={section}>
+          <span style={label}>Analysis</span>
+          {/* Info chips */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
             {info.project_type && (
-              <span style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: 100, padding: "4px 14px", fontSize: 13, fontWeight: 500 }}>
+              <span style={{ background: "var(--accent)", color: "var(--accent-text)", padding: "4px 12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.04em" }}>
                 {info.project_type}
               </span>
             )}
             {info.deadline && (
-              <span style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", borderRadius: 100, padding: "4px 14px", fontSize: 13, fontWeight: 500 }}>
-                📅 {info.deadline}
+              <span style={{ background: "var(--bg3)", border: "1px solid var(--border)", color: "var(--text3)", padding: "4px 12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.04em" }}>
+                {info.deadline}
               </span>
             )}
             {info.budget_mentioned && (
-              <span style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", borderRadius: 100, padding: "4px 14px", fontSize: 13, fontWeight: 500 }}>
-                💰 {info.budget_mentioned}
+              <span style={{ background: "var(--bg3)", border: "1px solid var(--border)", color: "var(--text3)", padding: "4px 12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.04em" }}>
+                {info.budget_mentioned}
               </span>
             )}
           </div>
           {/* Two columns */}
-          <div className="analysis-cols" style={{ display: "flex", gap: 32, marginBottom: info.missing_details && info.missing_details.length > 0 ? 20 : 0 }}>
+          <div className="analysis-cols" style={{ display: "flex", gap: 48, marginBottom: info.missing_details && info.missing_details.length > 0 ? 28 : 0 }}>
             {info.goals && info.goals.length > 0 && (
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Goals</div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", marginBottom: 16 }}>Goals</div>
                 {info.goals.map((g, i) => (
-                  <div key={i} style={{ fontSize: 14, color: "var(--text2)", lineHeight: 2, display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <span style={{ color: "var(--border)", marginTop: 2, flexShrink: 0 }}>•</span>{g}
+                  <div key={i} style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, paddingTop: 8, paddingBottom: 8, borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                    <span style={{ color: "var(--text4)", flexShrink: 0, marginTop: 2 }}>—</span>{g}
                   </div>
                 ))}
               </div>
             )}
             {info.features_requested && info.features_requested.length > 0 && (
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Features Requested</div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", marginBottom: 16 }}>Features Requested</div>
                 {info.features_requested.map((f, i) => (
-                  <div key={i} style={{ fontSize: 14, color: "var(--text2)", lineHeight: 2, display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <span style={{ color: "var(--border)", marginTop: 2, flexShrink: 0 }}>•</span>{f}
+                  <div key={i} style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, paddingTop: 8, paddingBottom: 8, borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                    <span style={{ color: "var(--text4)", flexShrink: 0, marginTop: 2 }}>—</span>{f}
                   </div>
                 ))}
               </div>
             )}
           </div>
-          {/* Missing details */}
           {info.missing_details && info.missing_details.length > 0 && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Missing Details</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", marginBottom: 12 }}>Missing Details</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {info.missing_details.map((d, i) => (
-                  <span key={i} style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", borderRadius: 6, padding: "3px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <span key={i} style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>
                     ⚠ {d}
                   </span>
                 ))}
@@ -281,16 +279,16 @@ export default function ScopeProjectPage() {
 
         {/* Section 3 — Risk flags */}
         {project.risk_flags && project.risk_flags.length > 0 && (
-          <div style={card}>
-            <span style={sectionLabel}>Risk Flags</span>
+          <div style={section}>
+            <span style={label}>Risk Flags</span>
             {project.risk_flags.map((r, i) => (
-              <div key={i} style={{ borderLeft: "3px solid #f59e0b", background: "#fffbeb", padding: "12px 16px", borderRadius: 8, marginBottom: 8, display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div key={i} style={{ borderLeft: "3px solid #f59e0b", background: "#fffbeb", padding: "14px 20px", marginBottom: 8, display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
                   <path d="M8 1.5L14.5 13H1.5L8 1.5Z" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinejoin="round"/>
                   <path d="M8 6v3.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
                   <circle cx="8" cy="11" r="0.75" fill="#fff"/>
                 </svg>
-                <span style={{ fontSize: 14, color: "#92400e", lineHeight: 1.5 }}>{r}</span>
+                <span style={{ fontSize: 14, color: "#92400e", lineHeight: 1.6 }}>{r}</span>
               </div>
             ))}
           </div>
@@ -298,58 +296,53 @@ export default function ScopeProjectPage() {
 
         {/* Section 4 — Clarifying questions */}
         {project.clarifying_questions && project.clarifying_questions.length > 0 && (
-          <div style={card}>
-            <span style={sectionLabel}>Clarifying Questions</span>
-            <p style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 20px", lineHeight: 1.6 }}>Answer these to strengthen your scope before building.</p>
+          <div style={section}>
+            <span style={label}>Clarifying Questions</span>
+            <p style={{ fontSize: 15, color: "var(--text3)", margin: "0 0 32px", lineHeight: 1.7 }}>Answer these to strengthen your scope before building.</p>
             {project.clarifying_questions.map((q, i) => (
-              <div key={i} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "20px 24px", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 12 }}>
-                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--text4)", marginTop: 3, flexShrink: 0 }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", lineHeight: 1.5 }}>{q}</span>
-                  </div>
+              <div key={i} style={{ borderTop: i === 0 ? "1px solid var(--border)" : "none", borderBottom: "1px solid var(--border)", padding: "24px 0" }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--text4)", marginTop: 3, flexShrink: 0, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", lineHeight: 1.5, letterSpacing: "-0.01em" }}>{q}</span>
                 </div>
                 <textarea
                   key={`answer-${i}`}
                   defaultValue={answers[i] || ""}
                   onBlur={(e) => saveAnswer(i, e.target.value)}
                   placeholder="Your answer..."
-                  style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", fontSize: 14, minHeight: 80, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6, color: "var(--text2)", background: "var(--surface)" }}
+                  style={{ width: "100%", border: "1px solid var(--border)", padding: "12px 16px", fontSize: 14, minHeight: 88, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.7, color: "var(--text2)", background: "var(--bg2)" }}
                 />
               </div>
             ))}
             {error && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", fontSize: 14, color: "#991b1b", marginBottom: 16 }}>{error}</div>
+              <div style={{ border: "1px solid #fecaca", padding: "12px 16px", fontSize: 14, color: "#991b1b", marginTop: 16, background: "#fef2f2" }}>{error}</div>
             )}
             <button
               onClick={buildScope}
               disabled={building}
-              style={{ width: "100%", background: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: 10, height: 52, fontSize: 16, fontWeight: 700, cursor: building ? "not-allowed" : "pointer", opacity: building ? 0.7 : 1, marginTop: 8 }}
+              style={{ width: "100%", background: "var(--accent)", color: "var(--accent-text)", border: "none", height: 52, fontSize: 15, fontWeight: 700, cursor: building ? "not-allowed" : "pointer", opacity: building ? 0.6 : 1, marginTop: 24, letterSpacing: "0.02em" }}
             >
               {building ? "Building scope..." : "Build scope →"}
             </button>
           </div>
         )}
 
-        {/* Sections 5-9 — shown after scope is built */}
+        {/* Sections 5–9 — shown after scope is built */}
         <FadeIn show={scopeVisible}>
 
           {/* Section 5 — Scope of work */}
           {(scope.included || scope.excluded) && (
-            <div style={card}>
-              <span style={sectionLabel}>Scope of Work</span>
-              <div className="analysis-cols" style={{ display: "flex", gap: 32 }}>
+            <div style={section}>
+              <span style={label}>Scope of Work</span>
+              <div className="analysis-cols" style={{ display: "flex", gap: 48 }}>
                 {scope.included && scope.included.length > 0 && (
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Included</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#10b981", marginBottom: 16 }}>Included</div>
                     {scope.included.map((item, i) => (
-                      <div key={i} style={{ fontSize: 14, color: "var(--text2)", lineHeight: 2, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 4 }}>
-                          <circle cx="8" cy="8" r="7" fill="#d1fae5"/>
-                          <path d="M5 8l2.5 2.5L11 5.5" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                      <div key={i} style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, paddingTop: 10, paddingBottom: 10, borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                        <span style={{ color: "#10b981", flexShrink: 0 }}>✓</span>
                         {item}
                       </div>
                     ))}
@@ -357,13 +350,10 @@ export default function ScopeProjectPage() {
                 )}
                 {scope.excluded && scope.excluded.length > 0 && (
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text4)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Not Included</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", marginBottom: 16 }}>Not Included</div>
                     {scope.excluded.map((item, i) => (
-                      <div key={i} style={{ fontSize: 14, color: "var(--text3)", lineHeight: 2, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 4 }}>
-                          <circle cx="8" cy="8" r="7" fill="var(--bg3)"/>
-                          <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="var(--text4)" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
+                      <div key={i} style={{ fontSize: 15, color: "var(--text3)", lineHeight: 1.7, paddingTop: 10, paddingBottom: 10, borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                        <span style={{ color: "var(--text4)", flexShrink: 0 }}>×</span>
                         {item}
                       </div>
                     ))}
@@ -375,14 +365,14 @@ export default function ScopeProjectPage() {
 
           {/* Section 6 — Deliverables */}
           {scope.deliverables && scope.deliverables.length > 0 && (
-            <div style={card}>
-              <span style={sectionLabel}>Deliverables</span>
+            <div style={section}>
+              <span style={label}>Deliverables</span>
               {scope.deliverables.map((d, i) => (
-                <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "10px 0", borderBottom: i < scope.deliverables!.length - 1 ? "1px solid var(--bg3)" : "none" }}>
-                  <span style={{ width: 26, height: 26, background: "var(--accent)", color: "var(--accent-text)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                <div key={i} style={{ display: "flex", gap: 20, alignItems: "flex-start", padding: "20px 0", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ width: 28, height: 28, background: "var(--accent)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, letterSpacing: "0" }}>
                     {i + 1}
                   </span>
-                  <span style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.7, paddingTop: 3 }}>{d}</span>
+                  <span style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, paddingTop: 3 }}>{d}</span>
                 </div>
               ))}
             </div>
@@ -390,25 +380,26 @@ export default function ScopeProjectPage() {
 
           {/* Section 7 — Project phases */}
           {scope.phases && scope.phases.length > 0 && (
-            <div style={card}>
-              <span style={sectionLabel}>Project Phases</span>
+            <div style={section}>
+              <span style={label}>Project Phases</span>
               {scope.phases.map((phase, i) => (
-                <div key={i} style={{ marginBottom: 8 }}>
+                <div key={i} style={{ borderBottom: "1px solid var(--border)" }}>
                   <button
+                    className="phase-btn"
                     onClick={() => setExpandedPhases((prev) => ({ ...prev, [i]: !prev[i] }))}
-                    style={{ width: "100%", background: expandedPhases[i] ? "var(--bg2)" : "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", textAlign: "left" }}
+                    style={{ width: "100%", background: "transparent", border: "none", padding: "20px 0", display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}
                   >
-                    <span style={{ width: 28, height: 28, background: "var(--accent)", color: "var(--accent-text)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    <span style={{ width: 28, height: 28, background: "var(--accent)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       {i + 1}
                     </span>
-                    <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{phase.name}</span>
-                    <span style={{ fontSize: 12, color: "var(--text4)", marginRight: 8 }}>{phase.duration}</span>
-                    <span style={{ color: "var(--text4)", fontSize: 12 }}>{expandedPhases[i] ? "▲" : "▼"}</span>
+                    <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>{phase.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--text4)", fontWeight: 500 }}>{phase.duration}</span>
+                    <span style={{ color: "var(--text4)", fontSize: 11, marginLeft: 4 }}>{expandedPhases[i] ? "▲" : "▼"}</span>
                   </button>
                   {expandedPhases[i] && (
-                    <div style={{ border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "12px 16px 12px 58px", background: "var(--bg2)" }}>
+                    <div style={{ padding: "0 0 20px 44px" }}>
                       {phase.tasks.map((task, j) => (
-                        <div key={j} style={{ fontSize: 13, color: "var(--text2)", padding: "4px 0", lineHeight: 1.6 }}>• {task}</div>
+                        <div key={j} style={{ fontSize: 14, color: "var(--text3)", padding: "6px 0", lineHeight: 1.6 }}>— {task}</div>
                       ))}
                     </div>
                   )}
@@ -419,22 +410,22 @@ export default function ScopeProjectPage() {
 
           {/* Section 8 — Timeline */}
           {scope.timeline && scope.timeline.length > 0 && (
-            <div style={card}>
-              <span style={sectionLabel}>Timeline</span>
+            <div style={section}>
+              <span style={label}>Timeline</span>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
-                  <tr>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
                     {["Phase", "Duration", "Milestone"].map((h) => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text3)", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid var(--border)" }}>{h}</th>
+                      <th key={h} style={{ textAlign: "left", padding: "12px 0", color: "var(--text4)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {scope.timeline.map((row, i) => (
-                    <tr key={i} style={{ background: i % 2 === 0 ? "var(--surface)" : "var(--bg2)" }}>
-                      <td style={{ padding: "12px", color: "var(--text2)", fontWeight: 500 }}>{row.phase}</td>
-                      <td style={{ padding: "12px", color: "var(--text3)" }}>{row.duration}</td>
-                      <td style={{ padding: "12px", color: "var(--text3)" }}>{row.milestone}</td>
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td style={{ padding: "20px 0", color: "var(--text2)", fontWeight: 600, fontSize: 15 }}>{row.phase}</td>
+                      <td style={{ padding: "20px 0", color: "var(--text3)", fontSize: 14 }}>{row.duration}</td>
+                      <td style={{ padding: "20px 0", color: "var(--text3)", fontSize: 14 }}>{row.milestone}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -444,15 +435,15 @@ export default function ScopeProjectPage() {
 
           {/* Section 9 — Contract clauses */}
           {scope.contract_clauses && scope.contract_clauses.length > 0 && (
-            <div style={card}>
-              <span style={sectionLabel}>Contract Clauses</span>
+            <div style={section}>
+              <span style={label}>Contract Clauses</span>
               {scope.contract_clauses.map((clause, i) => (
-                <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 0", borderBottom: i < scope.contract_clauses!.length - 1 ? "1px solid var(--bg3)" : "none" }}>
+                <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", padding: "20px 0", borderBottom: "1px solid var(--border)" }}>
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
                     <path d="M9 1.5L15.5 4.5V9C15.5 12.5 12.5 15.5 9 16.5C5.5 15.5 2.5 12.5 2.5 9V4.5L9 1.5Z" fill="var(--bg3)" stroke="var(--border)" strokeWidth="1"/>
                     <path d="M6.5 9l2 2 3-3" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: 0 }}>{clause}</p>
+                  <p style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.7, margin: 0 }}>{clause}</p>
                 </div>
               ))}
             </div>
@@ -460,10 +451,10 @@ export default function ScopeProjectPage() {
 
           {/* Bottom CTA */}
           {isComplete && (
-            <div style={{ marginTop: 32 }}>
+            <div style={{ paddingTop: 40 }}>
               <Link
                 href={`/scope/${project.id}/proposal`}
-                style={{ display: "block", width: "100%", background: "var(--accent)", color: "var(--accent-text)", borderRadius: 10, height: 52, fontSize: 16, fontWeight: 700, textAlign: "center", lineHeight: "52px", boxSizing: "border-box" }}
+                style={{ display: "block", width: "100%", background: "var(--accent)", color: "var(--accent-text)", height: 52, fontSize: 15, fontWeight: 700, textAlign: "center", lineHeight: "52px", boxSizing: "border-box", letterSpacing: "0.02em" }}
               >
                 Generate proposal →
               </Link>

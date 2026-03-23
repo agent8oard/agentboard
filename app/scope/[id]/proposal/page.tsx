@@ -42,7 +42,6 @@ interface SelectionPopup {
   sectionName: string;
 }
 
-// Section ids used for selective export
 const SECTION_IDS = ["summary", "scope", "deliverables", "timeline", "terms"] as const;
 type SectionId = typeof SECTION_IDS[number];
 
@@ -67,15 +66,9 @@ export default function ProposalPage() {
   const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
   const [selectionPopup, setSelectionPopup] = useState<SelectionPopup | null>(null);
   const documentRef = useRef<HTMLDivElement>(null);
-
-  // Part 1 — format toggle
   const [format, setFormat] = useState<"formal" | "email">("formal");
-
-  // Part 3 — selective export
   const [exportMode, setExportMode] = useState(false);
-  const [selectedSections, setSelectedSections] = useState<Set<SectionId>>(
-    new Set(SECTION_IDS)
-  );
+  const [selectedSections, setSelectedSections] = useState<Set<SectionId>>(new Set(SECTION_IDS));
 
   useEffect(() => {
     const projectId = params.id;
@@ -106,7 +99,6 @@ export default function ProposalPage() {
       });
   }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Part 4 — sentence-level highlighting (20-char minimum)
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) {
@@ -114,39 +106,20 @@ export default function ProposalPage() {
       return;
     }
     const selectedText = selection.toString().trim();
-
-    // Part 4: minimum 20 characters before showing popup
-    if (selectedText.length < 20) {
-      setSelectionPopup(null);
-      return;
-    }
-
+    if (selectedText.length < 20) { setSelectionPopup(null); return; }
     if (!documentRef.current) return;
-
     const range = selection.getRangeAt(0);
-    if (!documentRef.current.contains(range.commonAncestorContainer)) {
-      setSelectionPopup(null);
-      return;
-    }
+    if (!documentRef.current.contains(range.commonAncestorContainer)) { setSelectionPopup(null); return; }
 
-    // Find section name
     let sectionName = "Proposal";
     let node: Node | null = range.commonAncestorContainer;
     while (node && node !== documentRef.current) {
-      if (node instanceof HTMLElement && node.dataset.sectionName) {
-        sectionName = node.dataset.sectionName;
-        break;
-      }
+      if (node instanceof HTMLElement && node.dataset.sectionName) { sectionName = node.dataset.sectionName; break; }
       node = node.parentNode;
     }
 
     const rect = range.getBoundingClientRect();
-    setSelectionPopup({
-      x: rect.left + rect.width / 2,
-      y: rect.top + window.scrollY - 48,
-      text: selectedText,
-      sectionName,
-    });
+    setSelectionPopup({ x: rect.left + rect.width / 2, y: rect.top + window.scrollY - 52, text: selectedText, sectionName });
   }, []);
 
   useEffect(() => {
@@ -158,36 +131,19 @@ export default function ProposalPage() {
     if (!selectionPopup || !project) return;
     const { text, sectionName } = selectionPopup;
     setSelectionPopup(null);
-
     const id = `kp-${Date.now()}`;
     const newKeyPoint: KeyPoint = { id, text, explanation: "", sectionName, loading: true };
     const updated = [...keyPoints, newKeyPoint];
     setKeyPoints(updated);
-
     try {
-      const res = await fetch("/api/scope/explain-keypoint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedText: text, projectId: project.id }),
-      });
+      const res = await fetch("/api/scope/explain-keypoint", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedText: text, projectId: project.id }) });
       const data = await res.json();
       const explanation = data.explanation || "No explanation available.";
-      const finalKeyPoints = updated.map((kp) =>
-        kp.id === id ? { ...kp, explanation, loading: false } : kp
-      );
+      const finalKeyPoints = updated.map((kp) => kp.id === id ? { ...kp, explanation, loading: false } : kp);
       setKeyPoints(finalKeyPoints);
-      await fetch("/api/scope/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.id,
-          key_points: finalKeyPoints.map(({ id, text, explanation, sectionName }) => ({ id, text, explanation, sectionName })),
-        }),
-      });
+      await fetch("/api/scope/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project.id, key_points: finalKeyPoints.map(({ id, text, explanation, sectionName }) => ({ id, text, explanation, sectionName })) }) });
     } catch {
-      setKeyPoints((prev) => prev.map((kp) =>
-        kp.id === id ? { ...kp, explanation: "Failed to load explanation.", loading: false } : kp
-      ));
+      setKeyPoints((prev) => prev.map((kp) => kp.id === id ? { ...kp, explanation: "Failed to load explanation.", loading: false } : kp));
     }
   }
 
@@ -195,14 +151,7 @@ export default function ProposalPage() {
     if (!project) return;
     const updated = keyPoints.filter((kp) => kp.id !== id);
     setKeyPoints(updated);
-    await fetch("/api/scope/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        projectId: project.id,
-        key_points: updated.map(({ id, text, explanation, sectionName }) => ({ id, text, explanation, sectionName })),
-      }),
-    });
+    await fetch("/api/scope/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project.id, key_points: updated.map(({ id, text, explanation, sectionName }) => ({ id, text, explanation, sectionName })) }) });
   }
 
   async function saveProposal() {
@@ -216,37 +165,30 @@ export default function ProposalPage() {
   }
 
   async function copyText() {
-    const textToCopy = format === "email" ? proposalEmail : proposal;
-    await navigator.clipboard.writeText(textToCopy);
+    await navigator.clipboard.writeText(format === "email" ? proposalEmail : proposal);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  // Part 3 — toggle section selection
   function toggleSection(sectionId: SectionId) {
     setSelectedSections((prev) => {
       const next = new Set(prev);
-      if (next.has(sectionId)) {
-        next.delete(sectionId);
-      } else {
-        next.add(sectionId);
-      }
+      if (next.has(sectionId)) { next.delete(sectionId); } else { next.add(sectionId); }
       return next;
     });
   }
 
-  // Part 3 — helper to get className for a section
   function sectionPrintClass(sectionId: SectionId): string {
     return exportMode && !selectedSections.has(sectionId) ? "no-print" : "";
   }
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg2)" }}>
-      <p style={{ color: "var(--text4)" }}>Loading proposal...</p>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)" }}>
+      <p style={{ color: "var(--text4)", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Loading...</p>
     </div>
   );
   if (!project) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg2)" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--bg)" }}>
       <p style={{ color: "var(--text4)" }}>Proposal not found.</p>
     </div>
   );
@@ -256,54 +198,40 @@ export default function ProposalPage() {
   const totalSections = SECTION_IDS.length;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg2)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       {/* Sticky header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--surface)", borderBottom: "1px solid var(--border)", padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <Link href={`/scope/${params.id}`} style={{ fontSize: 13, color: "var(--text3)" }}>← Back to scope</Link>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", flex: 1 }}>{project.title || "Proposal"}</span>
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--surface)", borderBottom: "1px solid var(--border)", padding: "0 48px", height: 60, display: "flex", alignItems: "center", gap: 16 }}>
+        <Link href={`/scope/${params.id}`} style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", whiteSpace: "nowrap" }}>← Back</Link>
+        <span style={{ color: "var(--border)" }}>|</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", flex: 1, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.title || "Proposal"}</span>
         {exportMode && (
-          <span style={{ fontSize: 13, color: "var(--text3)" }}>
-            {selectedCount} of {totalSections} sections selected
+          <span style={{ fontSize: 12, color: "var(--text4)", whiteSpace: "nowrap" }}>
+            {selectedCount}/{totalSections} sections
           </span>
         )}
-        <button onClick={() => { setEditing(!editing); if (editing) saveProposal(); }} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
-          {editing ? "Save ✓" : "Edit"}
-        </button>
-        <button onClick={copyText} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
-          {copied ? "Copied!" : "Copy"}
-        </button>
-        {/* Part 3 — Customize export button */}
-        <button
-          onClick={() => setExportMode((v) => !v)}
-          style={{ background: exportMode ? "var(--accent)" : "none", color: exportMode ? "var(--accent-text)" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer" }}
-        >
-          {exportMode ? "Done" : "Customize export"}
-        </button>
-        <button onClick={() => window.print()} style={{ background: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          {exportMode ? `Export selected (${selectedCount})` : "Export PDF"}
-        </button>
+        <div style={{ display: "flex", gap: 0, flexShrink: 0 }}>
+          <button onClick={() => { setEditing(!editing); if (editing) saveProposal(); }} style={{ background: "none", border: "1px solid var(--border)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "var(--text)", cursor: "pointer", borderRight: "none" }}>
+            {editing ? "Save ✓" : "Edit"}
+          </button>
+          <button onClick={copyText} style={{ background: "none", border: "1px solid var(--border)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "var(--text)", cursor: "pointer", borderRight: "none" }}>
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            onClick={() => setExportMode((v) => !v)}
+            style={{ background: exportMode ? "var(--text3)" : "none", color: exportMode ? "var(--bg)" : "var(--text)", border: "1px solid var(--border)", padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", borderRight: "none" }}
+          >
+            {exportMode ? "Done" : "Customize"}
+          </button>
+          <button onClick={() => window.print()} style={{ background: "var(--accent)", color: "var(--accent-text)", border: "none", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em" }}>
+            {exportMode ? `Export (${selectedCount})` : "Export PDF"}
+          </button>
+        </div>
       </div>
 
       {/* Selection popup */}
       {selectionPopup && (
         <div
-          style={{
-            position: "absolute",
-            left: selectionPopup.x,
-            top: selectionPopup.y,
-            transform: "translateX(-50%)",
-            zIndex: 100,
-            background: "var(--accent)",
-            color: "var(--accent-text)",
-            borderRadius: 8,
-            padding: "7px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            whiteSpace: "nowrap",
-            userSelect: "none",
-          }}
+          style={{ position: "absolute", left: selectionPopup.x, top: selectionPopup.y, transform: "translateX(-50%)", zIndex: 100, background: "var(--accent)", color: "var(--accent-text)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", userSelect: "none", letterSpacing: "0.02em" }}
           onMouseDown={(e) => e.preventDefault()}
           onClick={addKeyPoint}
         >
@@ -312,17 +240,29 @@ export default function ProposalPage() {
       )}
 
       {/* Three-column layout */}
-      <div style={{ display: "flex", maxWidth: 1320, margin: "0 auto", padding: "0 24px", gap: 0 }}>
+      <div style={{ display: "flex", maxWidth: 1320, margin: "0 auto", padding: "0 48px" }}>
+
         {/* Left sidebar — outline */}
-        <aside style={{ width: 240, flexShrink: 0, paddingTop: 40 }}>
+        <aside style={{ width: 220, flexShrink: 0, paddingTop: 48 }}>
           <div style={{ position: "sticky", top: 80 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Outline</div>
-            {SECTIONS.map((s) => (
-              <a
-                key={s.id}
-                href={`#${s.id}`}
-                style={{ display: "block", fontSize: 13, color: "var(--text3)", padding: "5px 0", lineHeight: 1.5 }}
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text4)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>Outline</div>
+            {/* Format toggle */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 32, border: "1px solid var(--border)" }}>
+              <button
+                onClick={() => setFormat("formal")}
+                style={{ background: format === "formal" ? "var(--accent)" : "transparent", color: format === "formal" ? "var(--accent-text)" : "var(--text3)", border: "none", borderBottom: "1px solid var(--border)", padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left", letterSpacing: "0.01em" }}
               >
+                Formal Document
+              </button>
+              <button
+                onClick={() => setFormat("email")}
+                style={{ background: format === "email" ? "var(--accent)" : "transparent", color: format === "email" ? "var(--accent-text)" : "var(--text3)", border: "none", padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left", letterSpacing: "0.01em" }}
+              >
+                Email Draft
+              </button>
+            </div>
+            {SECTIONS.map((s) => (
+              <a key={s.id} href={`#${s.id}`} style={{ display: "block", fontSize: 13, color: "var(--text3)", padding: "6px 0", lineHeight: 1.5, borderBottom: "1px solid var(--border)" }}>
                 {s.label}
               </a>
             ))}
@@ -330,68 +270,30 @@ export default function ProposalPage() {
         </aside>
 
         {/* Center — document */}
-        <main style={{ flex: 1, maxWidth: 680, margin: "0 auto", padding: "40px 40px 80px" }} className="print-content">
+        <main style={{ flex: 1, maxWidth: 700, padding: "48px 48px 80px" }} className="print-content">
 
-          {/* Part 1 — Format toggle */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ display: "inline-flex", background: "var(--bg3)", borderRadius: 9, padding: 3 }}>
-              <button
-                onClick={() => setFormat("formal")}
-                style={{
-                  background: format === "formal" ? "var(--accent)" : "transparent",
-                  color: format === "formal" ? "var(--accent-text)" : "var(--text3)",
-                  border: "none",
-                  borderRadius: 7,
-                  padding: "7px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                Formal Document
-              </button>
-              <button
-                onClick={() => setFormat("email")}
-                style={{
-                  background: format === "email" ? "var(--accent)" : "transparent",
-                  color: format === "email" ? "var(--accent-text)" : "var(--text3)",
-                  border: "none",
-                  borderRadius: 7,
-                  padding: "7px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                Email Draft
-              </button>
-            </div>
-          </div>
-
-          {/* Part 1 — Email format view */}
+          {/* Email format view */}
           {format === "email" && (
-            <div style={{ background: "#ffffff", border: "1px solid var(--border)", borderRadius: 12, padding: "32px 36px", boxShadow: "var(--shadow)" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Email Draft</div>
-              {proposalEmail ? (
-                <div
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => {
-                    const val = e.currentTarget.innerText;
-                    setProposalEmail(val);
-                    saveProposalEmail(val);
-                  }}
-                  style={{ fontSize: 15, color: "#1a1a1a", lineHeight: 1.8, whiteSpace: "pre-wrap", outline: "none", minHeight: 200 }}
-                >
-                  {proposalEmail}
-                </div>
-              ) : (
-                <p style={{ fontSize: 15, color: "#aaa", fontStyle: "italic", margin: 0 }}>
-                  Email draft will generate when you build the scope.
-                </p>
-              )}
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--border)" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Email Draft</span>
+              </div>
+              <div style={{ padding: "28px 28px" }}>
+                {proposalEmail ? (
+                  <div
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => { const val = e.currentTarget.innerText; setProposalEmail(val); saveProposalEmail(val); }}
+                    style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, whiteSpace: "pre-wrap", outline: "none", minHeight: 200 }}
+                  >
+                    {proposalEmail}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 15, color: "var(--text4)", fontStyle: "italic", margin: 0 }}>
+                    Email draft will generate when you build the scope.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -401,152 +303,135 @@ export default function ProposalPage() {
               <textarea
                 value={proposal}
                 onChange={(e) => setProposal(e.target.value)}
-                style={{ width: "100%", minHeight: "80vh", border: "1px solid var(--border)", borderRadius: 10, padding: 24, fontSize: 15, lineHeight: 1.8, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", background: "var(--surface)", color: "var(--text)" }}
+                style={{ width: "100%", minHeight: "80vh", border: "1px solid var(--border)", padding: 28, fontSize: 15, lineHeight: 1.8, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", background: "var(--surface)", color: "var(--text)" }}
               />
             ) : (
               <div ref={documentRef} style={{ userSelect: "text" }}>
                 {/* Document header */}
-                <div style={{ marginBottom: 48 }}>
-                  <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-0.02em" }}>Project Proposal</h1>
-                  <h2 style={{ fontSize: 20, fontWeight: 400, color: "var(--text3)", margin: "0 0 16px" }}>{project.title}</h2>
-                  <p style={{ fontSize: 13, color: "var(--text4)", margin: 0 }}>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+                <div style={{ marginBottom: 56, borderBottom: "1px solid var(--border)", paddingBottom: 40 }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", margin: "0 0 16px" }}>
+                    {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                  <h1 style={{ fontSize: 40, fontWeight: 800, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-0.04em", lineHeight: 1.1 }}>Project Proposal</h1>
+                  <h2 style={{ fontSize: 20, fontWeight: 400, color: "var(--text3)", margin: 0, letterSpacing: "-0.01em" }}>{project.title}</h2>
                 </div>
 
                 {/* Project Summary */}
                 {project.extracted_info?.goals && project.extracted_info.goals.length > 0 && (
                   <div id="section-summary" data-section-name="Project Summary" className={sectionPrintClass("summary")} style={{ position: "relative" }}>
-                    {exportMode && (
-                      <SectionCheckbox
-                        checked={selectedSections.has("summary")}
-                        onChange={() => toggleSection("summary")}
-                      />
-                    )}
-                    <Section title="Project Summary">
+                    {exportMode && <SectionCheckbox checked={selectedSections.has("summary")} onChange={() => toggleSection("summary")} />}
+                    <DocSection title="Project Summary">
                       <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, margin: 0 }}>
                         This proposal outlines the scope, deliverables, timeline, and terms for {project.extracted_info.project_type ? `a ${project.extracted_info.project_type} project` : "this project"}.
                       </p>
-                    </Section>
+                    </DocSection>
                   </div>
                 )}
 
                 {/* Proposal text */}
                 {proposal && (
                   <div id="section-proposal" data-section-name="Proposal">
-                    <Section title="Proposal">
+                    <DocSection title="Proposal">
                       <div style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{proposal}</div>
-                    </Section>
+                    </DocSection>
                   </div>
                 )}
 
                 {/* Scope of Work */}
                 {(scope.included || scope.excluded) && (
                   <div id="section-scope" data-section-name="Scope of Work" className={sectionPrintClass("scope")} style={{ position: "relative" }}>
-                    {exportMode && (
-                      <SectionCheckbox
-                        checked={selectedSections.has("scope")}
-                        onChange={() => toggleSection("scope")}
-                      />
-                    )}
-                    <Section title="Scope of Work">
+                    {exportMode && <SectionCheckbox checked={selectedSections.has("scope")} onChange={() => toggleSection("scope")} />}
+                    <DocSection title="Scope of Work">
                       {scope.included && scope.included.length > 0 && (
-                        <div style={{ marginBottom: 16 }}>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Included</p>
-                          {scope.included.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 6px" }}>✓ {item}</p>)}
+                        <div style={{ marginBottom: 20 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", margin: "0 0 12px" }}>Included</p>
+                          {scope.included.map((item, i) => (
+                            <div key={i} style={{ fontSize: 14, color: "var(--text2)", padding: "10px 0", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                              <span style={{ color: "#10b981", flexShrink: 0 }}>✓</span>{item}
+                            </div>
+                          ))}
                         </div>
                       )}
                       {scope.excluded && scope.excluded.length > 0 && (
                         <div>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Not included</p>
-                          {scope.excluded.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 6px" }}>✕ {item}</p>)}
+                          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", margin: "16px 0 12px" }}>Not included</p>
+                          {scope.excluded.map((item, i) => (
+                            <div key={i} style={{ fontSize: 14, color: "var(--text3)", padding: "10px 0", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                              <span style={{ color: "var(--text4)", flexShrink: 0 }}>×</span>{item}
+                            </div>
+                          ))}
                         </div>
                       )}
-                    </Section>
+                    </DocSection>
                   </div>
                 )}
 
                 {/* Deliverables */}
                 {scope.deliverables && scope.deliverables.length > 0 && (
                   <div id="section-deliverables" data-section-name="Deliverables" className={sectionPrintClass("deliverables")} style={{ position: "relative" }}>
-                    {exportMode && (
-                      <SectionCheckbox
-                        checked={selectedSections.has("deliverables")}
-                        onChange={() => toggleSection("deliverables")}
-                      />
-                    )}
-                    <Section title="Deliverables">
-                      {scope.deliverables.map((d, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 8px" }}>{i + 1}. {d}</p>)}
-                    </Section>
+                    {exportMode && <SectionCheckbox checked={selectedSections.has("deliverables")} onChange={() => toggleSection("deliverables")} />}
+                    <DocSection title="Deliverables">
+                      {scope.deliverables.map((d, i) => (
+                        <div key={i} style={{ fontSize: 14, color: "var(--text2)", padding: "12px 0", borderBottom: "1px solid var(--border)", display: "flex", gap: 16, alignItems: "flex-start" }}>
+                          <span style={{ fontWeight: 700, color: "var(--text4)", flexShrink: 0, width: 20 }}>{i + 1}.</span>
+                          {d}
+                        </div>
+                      ))}
+                    </DocSection>
                   </div>
                 )}
 
                 {/* Timeline */}
                 {scope.timeline && scope.timeline.length > 0 && (
                   <div id="section-timeline" data-section-name="Timeline" className={sectionPrintClass("timeline")} style={{ position: "relative" }}>
-                    {exportMode && (
-                      <SectionCheckbox
-                        checked={selectedSections.has("timeline")}
-                        onChange={() => toggleSection("timeline")}
-                      />
-                    )}
-                    <Section title="Timeline">
+                    {exportMode && <SectionCheckbox checked={selectedSections.has("timeline")} onChange={() => toggleSection("timeline")} />}
+                    <DocSection title="Timeline">
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                         <thead>
-                          <tr>
-                            {["Phase", "Duration", "Milestone"].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 0", fontWeight: 600, color: "var(--text3)", borderBottom: "2px solid var(--border)" }}>{h}</th>)}
+                          <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                            {["Phase", "Duration", "Milestone"].map((h) => (
+                              <th key={h} style={{ textAlign: "left", padding: "10px 0", fontWeight: 600, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)" }}>{h}</th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
                           {scope.timeline.map((row, i) => (
-                            <tr key={i}>
-                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text2)" }}>{row.phase}</td>
-                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.duration}</td>
-                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.milestone}</td>
+                            <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                              <td style={{ padding: "14px 0", color: "var(--text2)", fontWeight: 600 }}>{row.phase}</td>
+                              <td style={{ padding: "14px 0", color: "var(--text3)" }}>{row.duration}</td>
+                              <td style={{ padding: "14px 0", color: "var(--text3)" }}>{row.milestone}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                    </Section>
+                    </DocSection>
                   </div>
                 )}
 
-                {/* Terms — Assumptions section removed from here (Part 5) */}
+                {/* Terms */}
                 {scope.contract_clauses && scope.contract_clauses.length > 0 && (
                   <div id="section-terms" data-section-name="Terms & Conditions" className={sectionPrintClass("terms")} style={{ position: "relative" }}>
-                    {exportMode && (
-                      <SectionCheckbox
-                        checked={selectedSections.has("terms")}
-                        onChange={() => toggleSection("terms")}
-                      />
-                    )}
-                    <Section title="Terms and Conditions">
-                      {scope.contract_clauses.map((clause, i) => <p key={i} style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: "0 0 14px" }}>{clause}</p>)}
-                    </Section>
+                    {exportMode && <SectionCheckbox checked={selectedSections.has("terms")} onChange={() => toggleSection("terms")} />}
+                    <DocSection title="Terms and Conditions">
+                      {scope.contract_clauses.map((clause, i) => (
+                        <p key={i} style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: "0 0 14px", paddingBottom: 14, borderBottom: i < scope.contract_clauses!.length - 1 ? "1px solid var(--border)" : "none" }}>{clause}</p>
+                      ))}
+                    </DocSection>
                   </div>
                 )}
 
-                {/* Part 5 — Assumptions as internal notes, outside export area */}
+                {/* Assumptions — internal only */}
                 {scope.assumptions && scope.assumptions.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 32,
-                      background: "var(--bg2)",
-                      border: "2px dashed var(--border)",
-                      borderRadius: 12,
-                      padding: "24px 28px",
-                    }}
-                    className="no-print"
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        For your reference only — not included in proposal
-                      </span>
+                  <div style={{ marginTop: 40, background: "var(--bg2)", border: "2px dashed var(--border)", padding: "24px 28px" }} className="no-print">
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text4)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
+                      For your reference only — not included in export
                     </div>
-                    <p style={{ fontSize: 12, color: "var(--text4)", fontStyle: "italic", margin: "0 0 12px" }}>
-                      These assumptions were made when generating this scope. Review them before sending.
+                    <p style={{ fontSize: 12, color: "var(--text4)", fontStyle: "italic", margin: "0 0 16px" }}>
+                      These assumptions were made when generating this scope. Review before sending.
                     </p>
                     {scope.assumptions.map((a, i) => (
-                      <div key={i} style={{ fontSize: 13, color: "var(--text3)", fontStyle: "italic", padding: "4px 0", borderBottom: i < scope.assumptions!.length - 1 ? "1px solid var(--border)" : "none" }}>
-                        • {a}
+                      <div key={i} style={{ fontSize: 13, color: "var(--text3)", fontStyle: "italic", padding: "8px 0", borderBottom: i < scope.assumptions!.length - 1 ? "1px solid var(--border)" : "none" }}>
+                        — {a}
                       </div>
                     ))}
                   </div>
@@ -557,28 +442,28 @@ export default function ProposalPage() {
         </main>
 
         {/* Right panel — key points */}
-        <aside style={{ width: 300, flexShrink: 0, paddingTop: 40 }} className="no-print">
+        <aside style={{ width: 260, flexShrink: 0, paddingTop: 48 }} className="no-print">
           <div style={{ position: "sticky", top: 80 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text4)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>
               Key Points {keyPoints.length > 0 && `(${keyPoints.length})`}
             </div>
             {keyPoints.length === 0 && (
-              <p style={{ fontSize: 13, color: "var(--text4)", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: 13, color: "var(--text4)", lineHeight: 1.7, margin: 0 }}>
                 Select any text in the proposal to add a key point and get AI insight.
               </p>
             )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
               {keyPoints.map((kp, idx) => (
-                <div key={kp.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", position: "relative", boxShadow: "var(--shadow)" }}>
+                <div key={kp.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "16px", position: "relative" }}>
                   <button
                     onClick={() => deleteKeyPoint(kp.id)}
                     style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text4)", lineHeight: 1, padding: "2px 4px" }}
-                    title="Remove key point"
+                    title="Remove"
                   >
                     ×
                   </button>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8, paddingRight: 20 }}>
-                    <span style={{ width: 22, height: 22, background: "var(--accent)", color: "var(--accent-text)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10, paddingRight: 20 }}>
+                    <span style={{ width: 20, height: 20, background: "var(--accent)", color: "var(--accent-text)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
                       {idx + 1}
                     </span>
                     <p style={{ fontSize: 12, color: "var(--text4)", fontStyle: "italic", margin: 0, lineHeight: 1.5 }}>
@@ -601,9 +486,7 @@ export default function ProposalPage() {
       </div>
 
       <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @media print {
           aside { display: none !important; }
           .no-print { display: none !important; }
@@ -613,10 +496,10 @@ export default function ProposalPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function DocSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 40 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", margin: "0 0 16px", paddingBottom: 12, borderBottom: "2px solid var(--text)" }}>{title}</h2>
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: "0 0 20px", paddingBottom: 16, borderBottom: "1px solid var(--border)", letterSpacing: "-0.02em" }}>{title}</h2>
       {children}
     </div>
   );
@@ -625,12 +508,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function SectionCheckbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
     <div style={{ position: "absolute", top: 4, left: -28, zIndex: 2 }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--accent)" }}
-      />
+      <input type="checkbox" checked={checked} onChange={onChange} style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--accent)" }} />
     </div>
   );
 }
