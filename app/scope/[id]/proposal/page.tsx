@@ -66,6 +66,7 @@ export default function ProposalPage() {
   const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
   const [selectionPopup, setSelectionPopup] = useState<SelectionPopup | null>(null);
   const documentRef = useRef<HTMLDivElement>(null);
+  const [profileName, setProfileName] = useState("");
   const [format, setFormat] = useState<"formal" | "email">("formal");
   const [exportMode, setExportMode] = useState(false);
   const [selectedSections, setSelectedSections] = useState<Set<SectionId>>(new Set(SECTION_IDS));
@@ -76,6 +77,14 @@ export default function ProposalPage() {
 
     supabase.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
       if (!data.user) { router.push("/auth"); return; }
+      supabase
+        .from("profiles")
+        .select("full_name, business_name")
+        .eq("id", data.user.id)
+        .single()
+        .then(({ data: p }: { data: { full_name?: string; business_name?: string } | null }) => {
+          if (p) setProfileName(p.full_name || p.business_name || "");
+        });
     });
 
     supabase
@@ -90,6 +99,7 @@ export default function ProposalPage() {
         console.log("Proposal email:", data.proposal_email);
         console.log("Scope:", data.scope);
         setProject(data);
+        // Replace [Freelancer] placeholder with the user's name — done lazily after profileName loads
         setProposal(data.proposal || "");
         setProposalEmail(data.proposal_email || "");
         if (data.key_points && Array.isArray(data.key_points)) {
@@ -98,6 +108,13 @@ export default function ProposalPage() {
         setLoading(false);
       });
   }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Replace [Freelancer] placeholder once we have both the project text and profile name
+  useEffect(() => {
+    if (!profileName) return;
+    setProposal((prev) => prev.replace(/\[Freelancer\]/g, profileName));
+    setProposalEmail((prev) => prev.replace(/\[Freelancer\]/g, profileName));
+  }, [profileName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();

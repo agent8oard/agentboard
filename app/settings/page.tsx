@@ -254,16 +254,17 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Name + business */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Full name</label>
-              <input style={inputStyle} value={profile.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Jane Smith" />
-            </div>
-            <div>
-              <label style={labelStyle}>Business name</label>
-              <input style={inputStyle} value={profile.business_name} onChange={(e) => set("business_name", e.target.value)} placeholder="Acme Studio" />
-            </div>
+          {/* Your name */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Your name</label>
+            <input style={inputStyle} value={profile.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Jane Smith" />
+            <p style={{ fontSize: 12, color: "var(--text4)", margin: "6px 0 0", lineHeight: 1.5 }}>This is how you&apos;ll be greeted in the app.</p>
+          </div>
+
+          {/* Business name */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Business name</label>
+            <input style={inputStyle} value={profile.business_name} onChange={(e) => set("business_name", e.target.value)} placeholder="Acme Studio" />
           </div>
 
           {/* Email readonly */}

@@ -8,13 +8,18 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (mounted && data.session?.user) {
-        setEmail(data.session.user.email || "");
-      }
+      if (!mounted) return;
+      const u = data.session?.user;
+      if (!u) return;
+      setEmail(u.email || "");
+      supabase.from("profiles").select("full_name").eq("id", u.id).single().then(({ data: p }) => {
+        if (mounted && p) setFullName(p.full_name || "");
+      });
     });
     return () => { mounted = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -59,7 +64,16 @@ export default function Sidebar() {
         })}
       </nav>
       <div style={{ padding: "20px 24px", borderTop: "1px solid var(--border)" }}>
-        <div style={{ fontSize: 11, color: "var(--text4)", marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{email}</div>
+        <div style={{ marginBottom: 12 }}>
+          {fullName ? (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em", marginBottom: 2 }}>{fullName}</div>
+              <div style={{ fontSize: 11, color: "var(--text4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{email}</div>
+            </>
+          ) : (
+            <div style={{ fontSize: 11, color: "var(--text4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{email}</div>
+          )}
+        </div>
         <DarkModeToggle />
         <button
           onClick={signOut}

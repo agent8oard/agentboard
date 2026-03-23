@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Sidebar from "@/components/Sidebar";
 import Link from "next/link";
+import { Greeting } from "./Greeting";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -43,8 +44,8 @@ export default async function DashboardPage() {
   const complete = projects?.filter((p) => p.status === "complete").length || 0;
   const recent = projects?.slice(0, 5) || [];
 
-  const { data: profile } = await serviceSupabase.from("profiles").select("full_name").eq("id", user.id).single();
-  const name = profile?.full_name || user.email?.split("@")[0] || "there";
+  const { data: profile } = await serviceSupabase.from("profiles").select("full_name, business_name").eq("id", user.id).single();
+  const name = profile?.full_name || profile?.business_name || user.email?.split("@")[0] || "there";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 64, borderBottom: "1px solid var(--border)", paddingBottom: 40 }}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", margin: "0 0 12px" }}>Dashboard</p>
-            <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", margin: 0, letterSpacing: "-0.03em" }}>Welcome back, {name}</h1>
+            <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", margin: 0, letterSpacing: "-0.03em" }}><Greeting name={name} /></h1>
           </div>
           <Link href="/scope/new" style={{ background: "var(--accent)", color: "var(--accent-text)", padding: "12px 24px", fontSize: 14, fontWeight: 700, display: "inline-block", letterSpacing: "0.02em" }}>
             New project →
