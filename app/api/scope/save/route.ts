@@ -1,35 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-function makeClients(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  const authClient = createServerClient(
+async function getClients() {
+  const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+  const accessToken = allCookies.find((c) => c.name.includes("access-token"))?.value;
+  const refreshToken = allCookies.find((c) => c.name.includes("refresh-token"))?.value;
+
+  const authClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll() {},
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const serviceClient = createServerClient(
+
+  if (accessToken && refreshToken) {
+    await authClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+  }
+
+  const serviceClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll() {},
-      },
-    }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+
   return { authClient, serviceClient };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const { authClient, serviceClient } = makeClients(cookieStore);
+    const { authClient, serviceClient } = await getClients();
 
     const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,8 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const { authClient, serviceClient } = makeClients(cookieStore);
+    const { authClient, serviceClient } = await getClients();
 
     const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
