@@ -43,39 +43,116 @@ function AuthForm() {
     }
   }
 
-  const inputStyle: React.CSSProperties = { width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", fontSize: 15, outline: "none", background: "var(--surface)", color: "var(--text)", boxSizing: "border-box" };
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    border: "1px solid var(--border2)",
+    padding: "13px 16px",
+    fontSize: 15,
+    outline: "none",
+    background: "var(--bg)",
+    color: "var(--text)",
+    boxSizing: "border-box",
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <style>{`
+        .auth-input:focus { border-color: var(--accent) !important; }
+        .auth-link:hover { color: var(--text) !important; }
+      `}</style>
       <div style={{ width: "100%", maxWidth: 400 }}>
-        <a href="/" style={{ display: "block", fontWeight: 700, fontSize: 22, color: "var(--text)", marginBottom: 40, textAlign: "center" }}>Scope</a>
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "36px 32px", boxShadow: "var(--shadow)" }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: "0 0 6px" }}>
+        <a href="/" style={{ display: "block", fontWeight: 800, fontSize: 22, color: "var(--text)", marginBottom: 48, textAlign: "center", letterSpacing: "-0.03em" }}>
+          Scope
+        </a>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "40px 36px" }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text)", margin: "0 0 6px", letterSpacing: "-0.03em" }}>
             {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create account" : "Reset password"}
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 28px" }}>
+          <p style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 32px", lineHeight: 1.5 }}>
             {mode === "signin" ? "Sign in to your account" : mode === "signup" ? "Start turning briefs into proposals" : "We'll send you a reset link"}
           </p>
-          {error && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "#991b1b", marginBottom: 20 }}>{error}</div>}
-          {success && <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", fontSize: 14, color: "#166534", marginBottom: 20 }}>{success}</div>}
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <input style={inputStyle} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+          {error && (
+            <div style={{ background: "var(--err-bg)", border: "1px solid var(--err-bdr)", padding: "10px 14px", fontSize: 14, color: "var(--err-text)", marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div style={{ background: "var(--ok-bg)", border: "1px solid var(--ok-bdr)", padding: "10px 14px", fontSize: 14, color: "var(--ok-text)", marginBottom: 20 }}>
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              className="auth-input"
+              style={inputStyle}
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
             {mode !== "reset" && (
-              <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              <input
+                className="auth-input"
+                style={inputStyle}
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
             )}
-            <button type="submit" disabled={loading} style={{ background: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: 8, padding: "11px 20px", fontSize: 15, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, marginTop: 4 }}>
-              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-text)",
+                border: "none",
+                height: 52,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.7 : 1,
+                marginTop: 4,
+                letterSpacing: "0.02em",
+                width: "100%",
+              }}
+            >
+              {loading ? "Please wait..." : mode === "signin" ? "Sign in →" : mode === "signup" ? "Create account →" : "Send reset link →"}
             </button>
           </form>
-          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8, textAlign: "center" }}>
+
+          <div style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 10, textAlign: "center" }}>
             {mode === "signin" && (
               <>
-                <button onClick={() => setMode("signup")} style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer" }}>No account? <span style={{ color: "var(--text)", fontWeight: 600 }}>Sign up</span></button>
-                <button onClick={() => setMode("reset")} style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer" }}>Forgot password?</button>
+                <button
+                  onClick={() => setMode("signup")}
+                  className="auth-link"
+                  style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer", padding: 0 }}
+                >
+                  No account? <span style={{ color: "var(--text)", fontWeight: 700 }}>Sign up</span>
+                </button>
+                <button
+                  onClick={() => setMode("reset")}
+                  className="auth-link"
+                  style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer", padding: 0 }}
+                >
+                  Forgot password?
+                </button>
               </>
             )}
             {mode !== "signin" && (
-              <button onClick={() => setMode("signin")} style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer" }}>Back to <span style={{ color: "var(--text)", fontWeight: 600 }}>sign in</span></button>
+              <button
+                onClick={() => setMode("signin")}
+                className="auth-link"
+                style={{ background: "none", border: "none", fontSize: 13, color: "var(--text3)", cursor: "pointer", padding: 0 }}
+              >
+                Back to <span style={{ color: "var(--text)", fontWeight: 700 }}>sign in</span>
+              </button>
             )}
           </div>
         </div>

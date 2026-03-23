@@ -1,31 +1,57 @@
+/* ─── Light mode (default) ─── */
 :root {
-  --bg: #ffffff;
-  --bg2: #fafafa;
-  --bg3: #f4f4f4;
-  --surface: #ffffff;
-  --border: #e8e8e8;
-  --text: #0a0a0a;
-  --text2: #333333;
-  --text3: #888888;
-  --text4: #bbbbbb;
-  --accent: #0a0a0a;
-  --accent-text: #ffffff;
-  --shadow: none;
+  --bg:          #ffffff;
+  --bg2:         #fafafa;
+  --bg3:         #f4f4f4;
+  --bg4:         #ebebeb;
+  --surface:     #ffffff;
+  --border:      #e8e8e8;
+  --border2:     #d0d0d0;
+  --text:        #0a0a0a;
+  --text2:       #333333;
+  --text3:       #888888;
+  --text4:       #bbbbbb;
+  --accent:      #c8f135;
+  --accent-text: #000000;
+  --shadow:      none;
+  /* semantic colors */
+  --err-bg:   #fef2f2;
+  --err-bdr:  #fecaca;
+  --err-text: #991b1b;
+  --ok-bg:    #f0fdf4;
+  --ok-bdr:   #bbf7d0;
+  --ok-text:  #166534;
+  --warn-bg:  #fffbeb;
+  --warn-bdr: #fcd34d;
+  --warn-text:#92400e;
 }
 
+/* ─── Dark mode ─── */
 .dark {
-  --bg: #0c0c0c;
-  --bg2: #111111;
-  --bg3: #161616;
-  --surface: #111111;
-  --border: #1f1f1f;
-  --text: #f0f0f0;
-  --text2: #c0c0c0;
-  --text3: #808080;
-  --text4: #404040;
-  --accent: #f0f0f0;
-  --accent-text: #0c0c0c;
-  --shadow: none;
+  --bg:          #000000;
+  --bg2:         #0a0a0a;
+  --bg3:         #111111;
+  --bg4:         #1a1a1a;
+  --surface:     #0d0d0d;
+  --border:      #1f1f1f;
+  --border2:     #2a2a2a;
+  --text:        #ffffff;
+  --text2:       #e0e0e0;
+  --text3:       #808080;
+  --text4:       #404040;
+  --accent:      #c8f135;
+  --accent-text: #000000;
+  --shadow:      none;
+  /* semantic colors */
+  --err-bg:   #1a0505;
+  --err-bdr:  #3d1515;
+  --err-text: #f87171;
+  --ok-bg:    #051a05;
+  --ok-bdr:   #153d15;
+  --ok-text:  #4ade80;
+  --warn-bg:  #1a1200;
+  --warn-bdr: #3d2c00;
+  --warn-text:#fbbf24;
 }
 
 *, *::before, *::after {
@@ -51,8 +77,16 @@ button {
   font-family: inherit;
 }
 
-textarea, input {
+textarea, input, select {
   font-family: inherit;
+}
+
+/* Sharp focus ring in accent color */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent) !important;
 }
 
 @media print {

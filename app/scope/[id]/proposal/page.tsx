@@ -347,7 +347,7 @@ export default function ProposalPage() {
                           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", margin: "0 0 12px" }}>Included</p>
                           {scope.included.map((item, i) => (
                             <div key={i} style={{ fontSize: 14, color: "var(--text2)", padding: "10px 0", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
-                              <span style={{ color: "#10b981", flexShrink: 0 }}>✓</span>{item}
+                              <span style={{ color: "var(--accent)", flexShrink: 0 }}>✓</span>{item}
                             </div>
                           ))}
                         </div>
@@ -454,7 +454,7 @@ export default function ProposalPage() {
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
               {keyPoints.map((kp, idx) => (
-                <div key={kp.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "16px", position: "relative" }}>
+                <div key={kp.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "3px solid var(--warn-text)", padding: "16px", position: "relative" }}>
                   <button
                     onClick={() => deleteKeyPoint(kp.id)}
                     style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text4)", lineHeight: 1, padding: "2px 4px" }}

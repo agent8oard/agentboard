@@ -268,7 +268,7 @@ export default function ScopeProjectPage() {
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", marginBottom: 12 }}>Missing Details</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {info.missing_details.map((d, i) => (
-                  <span key={i} style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>
+                  <span key={i} style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-bdr)", color: "var(--warn-text)", padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>
                     ⚠ {d}
                   </span>
                 ))}
@@ -282,13 +282,13 @@ export default function ScopeProjectPage() {
           <div style={section}>
             <span style={label}>Risk Flags</span>
             {project.risk_flags.map((r, i) => (
-              <div key={i} style={{ borderLeft: "3px solid #f59e0b", background: "#fffbeb", padding: "14px 20px", marginBottom: 8, display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div key={i} style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-bdr)", borderLeft: "3px solid var(--warn-text)", padding: "14px 20px", marginBottom: 8, display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
-                  <path d="M8 1.5L14.5 13H1.5L8 1.5Z" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinejoin="round"/>
-                  <path d="M8 6v3.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
-                  <circle cx="8" cy="11" r="0.75" fill="#fff"/>
+                  <path d="M8 1.5L14.5 13H1.5L8 1.5Z" fill="var(--warn-text)" stroke="var(--warn-text)" strokeWidth="1" strokeLinejoin="round"/>
+                  <path d="M8 6v3.5" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="8" cy="11" r="0.75" fill="var(--bg)"/>
                 </svg>
-                <span style={{ fontSize: 14, color: "#92400e", lineHeight: 1.6 }}>{r}</span>
+                <span style={{ fontSize: 14, color: "var(--warn-text)", lineHeight: 1.6 }}>{r}</span>
               </div>
             ))}
           </div>
@@ -317,7 +317,7 @@ export default function ScopeProjectPage() {
               </div>
             ))}
             {error && (
-              <div style={{ border: "1px solid #fecaca", padding: "12px 16px", fontSize: 14, color: "#991b1b", marginTop: 16, background: "#fef2f2" }}>{error}</div>
+              <div style={{ border: "1px solid var(--err-bdr)", padding: "12px 16px", fontSize: 14, color: "var(--err-text)", marginTop: 16, background: "var(--err-bg)" }}>{error}</div>
             )}
             <button
               onClick={buildScope}
@@ -339,10 +339,10 @@ export default function ScopeProjectPage() {
               <div className="analysis-cols" style={{ display: "flex", gap: 48 }}>
                 {scope.included && scope.included.length > 0 && (
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#10b981", marginBottom: 16 }}>Included</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 16 }}>Included</div>
                     {scope.included.map((item, i) => (
                       <div key={i} style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, paddingTop: 10, paddingBottom: 10, borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
-                        <span style={{ color: "#10b981", flexShrink: 0 }}>✓</span>
+                        <span style={{ color: "var(--accent)", flexShrink: 0 }}>✓</span>
                         {item}
                       </div>
                     ))}
