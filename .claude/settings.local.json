@@ -23,7 +23,8 @@
       "Bash(grep -n \"setInterval\\\\|router.refresh\\\\|window.location.reload\\\\|useEffect\\\\|agentId\" C:/Users/mavin/agentboard/app/agent/[id]/AgentClient.tsx)",
       "Bash(rm -rf app/agent app/agents app/builder app/dashboard app/document app/portal app/desktop-mode app/tasks app/legal app/scope app/api/agent-chat app/api/agent-memory app/api/check-automations app/api/generate-agent app/api/generate-document app/api/knowledge app/api/notify-proposal app/api/portal-chat app/api/portal-settings app/api/run-agent app/api/run-automation app/api/scope components/OnboardingWelcome.tsx components/OnboardingChecklist.tsx)",
       "Bash(rm -f components/Sidebar.tsx)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(find C:Usersmavinagentboard -maxdepth 3 -type d -not -path */node_modules/* -not -path */.next/* -not -path */dist-electron/*)"
     ]
   }
 }
