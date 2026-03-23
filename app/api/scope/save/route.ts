@@ -2,27 +2,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+function makeClients(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  const authClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    }
+  );
+  const serviceClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    }
+  );
+  return { authClient, serviceClient };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
-    );
+    const { authClient, serviceClient } = makeClients(cookieStore);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "No ID" }, { status: 400 });
 
-    const { data, error } = await supabase.from("scope_projects").select("*").eq("id", id).eq("user_id", user.id).single();
+    const { data, error } = await serviceClient.from("scope_projects").select("*").eq("id", id).eq("user_id", user.id).single();
     if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     return NextResponse.json(data);
@@ -34,18 +49,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
-    );
+    const { authClient, serviceClient } = makeClients(cookieStore);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { projectId, ...fields } = await req.json();
@@ -57,7 +63,7 @@ export async function POST(req: NextRequest) {
       if (key in fields) update[key] = fields[key];
     }
 
-    const { error } = await supabase.from("scope_projects").update(update).eq("id", projectId).eq("user_id", user.id);
+    const { error } = await serviceClient.from("scope_projects").update(update).eq("id", projectId).eq("user_id", user.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true });

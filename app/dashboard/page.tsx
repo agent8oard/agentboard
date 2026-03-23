@@ -6,6 +6,20 @@ import Link from "next/link";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
+  const authClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    }
+  );
+
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) redirect("/auth");
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -16,9 +30,6 @@ export default async function DashboardPage() {
       },
     }
   );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth");
 
   const { data: projects } = await supabase
     .from("scope_projects")
