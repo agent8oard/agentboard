@@ -1,10 +1,9 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 function AuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
   const [email, setEmail] = useState("");
@@ -22,14 +21,20 @@ function AuthForm() {
         if (error) throw error;
         setSuccess("Check your email for a reset link.");
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccess("Check your email to confirm your account.");
+        if (data.session) {
+          window.location.href = "/dashboard";
+        } else {
+          setSuccess("Check your email to confirm your account.");
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const redirect = searchParams.get("redirect") || "/dashboard";
-        router.replace(redirect);
+        if (data.session) {
+          const redirect = searchParams.get("redirect") || "/dashboard";
+          window.location.href = redirect;
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
