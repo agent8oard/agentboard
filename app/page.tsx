@@ -1,253 +1,499 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-const MARQUEE = "SCOPE · PROPOSAL · CLARITY · FREELANCE · PROTECT YOUR WORK · ".repeat(5);
+const MARQUEE_TEXT = "SCOPE · PROPOSAL · CLARITY · FREELANCE · PROTECT YOUR WORK · ";
 
 export default function HomePage() {
-  const dotRef = useRef<HTMLDivElement>(null);
+  const dotRef  = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const mouse = useRef({ x: -100, y: -100 });
-  const ring = useRef({ x: -100, y: -100 });
+  const mouse   = useRef({ x: -200, y: -200 });
+  const ringPos = useRef({ x: -200, y: -200 });
   const hovering = useRef(false);
-  const raf = useRef<number>(0);
+  const rafId    = useRef<number>(0);
   const [scrolled, setScrolled] = useState(false);
 
-  // Custom cursor
+  /* ─── Custom cursor at 60fps ─── */
   useEffect(() => {
-    const move = (e: MouseEvent) => { mouse.current = { x: e.clientX, y: e.clientY }; };
-    const enter = (e: MouseEvent) => { if ((e.target as HTMLElement).closest("a,button")) hovering.current = true; };
-    const leave = (e: MouseEvent) => { if ((e.target as HTMLElement).closest("a,button")) hovering.current = false; };
+    const onMove  = (e: MouseEvent) => { mouse.current = { x: e.clientX, y: e.clientY }; };
+    const onEnter = (e: MouseEvent) => { if ((e.target as HTMLElement).closest("a,button")) hovering.current = true; };
+    const onLeave = (e: MouseEvent) => { if ((e.target as HTMLElement).closest("a,button")) hovering.current = false; };
 
     const tick = () => {
-      ring.current.x += (mouse.current.x - ring.current.x) * 0.12;
-      ring.current.y += (mouse.current.y - ring.current.y) * 0.12;
+      ringPos.current.x += (mouse.current.x - ringPos.current.x) * 0.1;
+      ringPos.current.y += (mouse.current.y - ringPos.current.y) * 0.1;
+
       if (dotRef.current) {
-        dotRef.current.style.transform = `translate(${mouse.current.x - 4}px,${mouse.current.y - 4}px)`;
+        dotRef.current.style.transform = `translate(${mouse.current.x - 4}px, ${mouse.current.y - 4}px)`;
       }
       if (ringRef.current) {
-        const s = hovering.current ? 60 : 40;
-        ringRef.current.style.transform = `translate(${ring.current.x - s / 2}px,${ring.current.y - s / 2}px)`;
-        ringRef.current.style.width = `${s}px`;
-        ringRef.current.style.height = `${s}px`;
-        ringRef.current.style.background = hovering.current ? "rgba(255,255,255,0.08)" : "transparent";
+        const size = hovering.current ? 64 : 40;
+        const bg   = hovering.current ? "rgba(255,255,255,0.1)" : "transparent";
+        ringRef.current.style.transform = `translate(${ringPos.current.x - size / 2}px, ${ringPos.current.y - size / 2}px)`;
+        ringRef.current.style.width  = `${size}px`;
+        ringRef.current.style.height = `${size}px`;
+        ringRef.current.style.background = bg;
       }
-      raf.current = requestAnimationFrame(tick);
+      rafId.current = requestAnimationFrame(tick);
     };
 
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseover", enter);
-    document.addEventListener("mouseout", leave);
-    raf.current = requestAnimationFrame(tick);
+    document.addEventListener("mousemove",  onMove);
+    document.addEventListener("mouseover",  onEnter);
+    document.addEventListener("mouseout",   onLeave);
+    rafId.current = requestAnimationFrame(tick);
 
     return () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseover", enter);
-      document.removeEventListener("mouseout", leave);
-      cancelAnimationFrame(raf.current);
+      document.removeEventListener("mousemove",  onMove);
+      document.removeEventListener("mouseover",  onEnter);
+      document.removeEventListener("mouseout",   onLeave);
+      cancelAnimationFrame(rafId.current);
     };
   }, []);
 
-  // Nav scroll state
+  /* ─── Nav blur on scroll ─── */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const handle = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", handle, { passive: true });
+    return () => window.removeEventListener("scroll", handle);
   }, []);
 
-  // Scroll reveal via IntersectionObserver
+  /* ─── Scroll-reveal via IntersectionObserver ─── */
   useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) {
-          const el = e.target as HTMLElement;
-          el.style.opacity = "1";
-          el.style.transform = "translateY(0)";
-          obs.unobserve(el);
-        }
-      }),
-      { threshold: 0.1 }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLElement;
+            el.style.opacity   = "1";
+            el.style.transform = "translateY(0)";
+            io.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.12 }
     );
-    document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+    document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+    return () => io.disconnect();
   }, []);
 
   return (
     <div style={{ background: "#000", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", overflowX: "hidden" }}>
+
+      {/* ─── Injected styles ─── */}
       <style>{`
-        * { cursor: none !important; }
-        .reveal {
+        *, *::before, *::after { cursor: none !important; }
+
+        /* Scroll-reveal base state */
+        .rv {
           opacity: 0;
           transform: translateY(30px);
-          transition: opacity 0.6s ease, transform 0.6s ease;
+          transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1),
+                      transform 0.7s cubic-bezier(0.16,1,0.3,1);
         }
-        .d1 { transition-delay: 0.1s; }
-        .d2 { transition-delay: 0.2s; }
-        .d3 { transition-delay: 0.3s; }
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-100%); }
-        }
+        .rv.d1 { transition-delay: 0.08s; }
+        .rv.d2 { transition-delay: 0.16s; }
+        .rv.d3 { transition-delay: 0.24s; }
+        .rv.d4 { transition-delay: 0.32s; }
+
+        /* Animated grain overlay */
         @keyframes grain {
-          0%,100% { transform: translate(0,0); }
-          20%     { transform: translate(-3%,-4%); }
-          40%     { transform: translate(4%,2%); }
-          60%     { transform: translate(-2%,5%); }
-          80%     { transform: translate(3%,-3%); }
+          0%,100% { transform: translate(0,0) }
+          10%  { transform: translate(-2%, -3%) }
+          20%  { transform: translate(3%, -1%) }
+          30%  { transform: translate(-1%, 4%) }
+          40%  { transform: translate(4%, -2%) }
+          50%  { transform: translate(-3%, 2%) }
+          60%  { transform: translate(2%, 4%) }
+          70%  { transform: translate(-4%, -1%) }
+          80%  { transform: translate(1%, -4%) }
+          90%  { transform: translate(3%, 3%) }
         }
-        .grain-el {
+        .grain {
           position: absolute;
-          inset: -20%;
-          width: 140%;
-          height: 140%;
-          opacity: 0.045;
+          inset: -30%;
+          width: 160%; height: 160%;
           pointer-events: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
-          animation: grain 8s steps(8) infinite;
+          opacity: 0.035;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23f)'/%3E%3C/svg%3E");
+          animation: grain 10s steps(10) infinite;
         }
-        .nl { position: relative; }
-        .nl::after {
+
+        /* Marquee */
+        @keyframes scroll-left {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+        .marquee-track {
+          display: flex;
+          white-space: nowrap;
+          animation: scroll-left 28s linear infinite;
+          will-change: transform;
+        }
+
+        /* Nav hover underline */
+        .nav-link {
+          position: relative;
+          text-decoration: none;
+        }
+        .nav-link::after {
           content: '';
           position: absolute;
-          bottom: -2px; left: 0;
-          width: 0; height: 1px;
-          background: rgba(255,255,255,0.5);
+          left: 0; bottom: -3px;
+          height: 1px; width: 0;
+          background: #fff;
           transition: width 0.3s ease;
         }
-        .nl:hover::after { width: 100%; }
-        .fi { border-top: 1px solid #1a1a1a; padding: 56px 0; }
-        .stat-card { transition: border-color 0.3s ease; }
-        .stat-card:hover { border-color: #c8f135 !important; }
-        @media (max-width: 768px) {
-          .hero-pad { padding: 100px 24px 0 !important; }
-          .section-pad { padding: 80px 24px !important; }
-          .nav-pad { padding: 20px 24px !important; }
-          .fi-grid { grid-template-columns: 1fr !important; }
-          .stat-grid { grid-template-columns: 1fr !important; }
-          .stat-card { border-left: 1px solid #222 !important; }
+        .nav-link:hover::after { width: 100%; }
+
+        /* Feature row hover */
+        .feature-row {
+          border-top: 1px solid #181818;
+          padding: 60px 0;
+          display: flex;
+          gap: 56px;
+          align-items: flex-start;
+          position: relative;
+          transition: border-color 0.3s;
+        }
+        .feature-row:hover { border-color: #333; }
+
+        /* Stat card */
+        .stat-card {
+          padding: 48px 40px;
+          background: #0d0d0d;
+          border: 1px solid #1c1c1c;
+          transition: border-color 0.3s ease, background 0.3s ease;
+        }
+        .stat-card:hover {
+          border-color: #c8f135;
+          background: #111;
+        }
+
+        /* CTA button */
+        .cta-btn {
+          display: inline-block;
+          background: #000;
+          color: #fff;
+          padding: 18px 52px;
+          font-size: 16px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          transition: background 0.2s, color 0.2s;
+          font-family: inherit;
+          border: none;
+          text-decoration: none;
+        }
+        .cta-btn:hover { background: #111; }
+
+        @media (max-width: 860px) {
+          .hero-inner  { padding: 0 24px !important; }
+          .sec-pad     { padding: 80px 24px !important; }
+          .nav-inner   { padding: 20px 24px !important; }
+          .stat-grid   { grid-template-columns: 1fr !important; }
+          .stat-card   { border-left: 1px solid #1c1c1c !important; border-top: none !important; }
+          .feature-row { flex-direction: column; gap: 16px !important; }
+          .feature-num { font-size: 72px !important; width: auto !important; }
         }
       `}</style>
 
-      {/* Custom cursor — dot */}
-      <div
-        ref={dotRef}
-        style={{ position: "fixed", top: 0, left: 0, width: 8, height: 8, background: "#fff", borderRadius: "50%", pointerEvents: "none", zIndex: 9999, willChange: "transform" }}
-      />
-      {/* Custom cursor — ring */}
-      <div
-        ref={ringRef}
-        style={{ position: "fixed", top: 0, left: 0, width: 40, height: 40, border: "1px solid rgba(255,255,255,0.35)", borderRadius: "50%", pointerEvents: "none", zIndex: 9998, willChange: "transform", transition: "width 0.2s ease, height 0.2s ease, background 0.2s ease" }}
-      />
+      {/* ─── Cursor dot ─── */}
+      <div ref={dotRef} style={{
+        position: "fixed", top: 0, left: 0,
+        width: 8, height: 8,
+        background: "#fff",
+        borderRadius: "50%",
+        pointerEvents: "none",
+        zIndex: 9999,
+        willChange: "transform",
+      }} />
 
-      {/* Fixed Nav */}
-      <nav
-        className="nav-pad"
-        style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "22px 48px",
-          transition: "background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease",
-          background: scrolled ? "rgba(0,0,0,0.88)" : "transparent",
-          backdropFilter: scrolled ? "blur(16px)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(16px)" : "none",
-          borderBottom: `1px solid ${scrolled ? "#1a1a1a" : "transparent"}`,
-        }}
-      >
-        <a href="/" style={{ fontWeight: 800, fontSize: 18, color: "#fff", letterSpacing: "-0.02em" }}>Scope</a>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          <a href="/auth" className="nl" style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>Sign in</a>
-          <a href="/auth" style={{ background: "#c8f135", color: "#000", padding: "9px 20px", fontSize: 14, fontWeight: 700, letterSpacing: "0.02em" }}>
+      {/* ─── Cursor ring ─── */}
+      <div ref={ringRef} style={{
+        position: "fixed", top: 0, left: 0,
+        width: 40, height: 40,
+        border: "1px solid rgba(255,255,255,0.4)",
+        borderRadius: "50%",
+        pointerEvents: "none",
+        zIndex: 9998,
+        willChange: "transform",
+        transition: "width 0.2s ease, height 0.2s ease, background 0.2s ease",
+      }} />
+
+      {/* ─── NAVIGATION ─── */}
+      <nav className="nav-inner" style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "24px 56px",
+        background: scrolled ? "rgba(0,0,0,0.9)" : "transparent",
+        backdropFilter: scrolled ? "blur(20px)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
+        borderBottom: `1px solid ${scrolled ? "#1a1a1a" : "transparent"}`,
+        transition: "background 0.4s, border-color 0.4s",
+      }}>
+        <a href="/" style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "-0.02em", textDecoration: "none" }}>
+          Scope
+        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+          <a href="/auth" className="nav-link" style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+            Sign in
+          </a>
+          <a href="/auth" style={{
+            background: "#c8f135", color: "#000",
+            padding: "10px 22px",
+            fontSize: 13, fontWeight: 700,
+            letterSpacing: "0.03em",
+            textDecoration: "none",
+          }}>
             Get started →
           </a>
         </div>
       </nav>
 
       {/* ─── HERO ─── */}
-      <section
-        className="hero-pad"
-        style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "120px 48px 0", position: "relative", overflow: "hidden" }}
-      >
-        <div className="grain-el" />
+      <section style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        position: "relative",
+        overflow: "hidden",
+        background: "#000",
+      }}>
+        {/* Grain texture */}
+        <div className="grain" />
 
-        <div style={{ maxWidth: 1100, position: "relative", zIndex: 1 }}>
-          <p className="reveal" style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c8f135", margin: "0 0 28px" }}>
+        {/* Radial glow */}
+        <div style={{
+          position: "absolute",
+          top: "20%", left: "50%",
+          transform: "translateX(-50%)",
+          width: 800, height: 600,
+          background: "radial-gradient(ellipse, rgba(200,241,53,0.04) 0%, transparent 70%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }} />
+
+        <div className="hero-inner" style={{ padding: "0 56px", position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+          <p className="rv" style={{
+            fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "#c8f135",
+            margin: "0 0 32px",
+          }}>
             Built for freelancers &amp; agencies
           </p>
-          <h1 className="reveal d1" style={{ fontSize: "clamp(40px, 7vw, 88px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", margin: "0 0 28px", color: "#fff" }}>
+
+          <h1 className="rv d1" style={{
+            fontSize: "clamp(44px, 7.5vw, 92px)",
+            fontWeight: 800,
+            lineHeight: 0.97,
+            letterSpacing: "-0.03em",
+            margin: "0 0 32px",
+            color: "#fff",
+          }}>
             Turn client briefs<br />
-            <em style={{ fontStyle: "italic", color: "rgba(255,255,255,0.55)" }}>into airtight proposals</em>
+            <em style={{ fontStyle: "italic", color: "rgba(255,255,255,0.5)" }}>
+              into airtight proposals
+            </em>
           </h1>
-          <p className="reveal d2" style={{ fontSize: 18, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, margin: "0 0 48px", maxWidth: 460 }}>
-            Paste any client enquiry. Get a structured scope, risk analysis, and ready-to-send proposal in minutes.
+
+          <p className="rv d2" style={{
+            fontSize: 17,
+            color: "rgba(255,255,255,0.42)",
+            lineHeight: 1.75,
+            margin: "0 0 52px",
+            maxWidth: 440,
+          }}>
+            Paste any client enquiry. Get a structured scope, risk analysis, and a ready-to-send proposal in minutes.
           </p>
-          <div className="reveal d3" style={{ display: "flex" }}>
-            <a href="/auth" style={{ display: "inline-block", background: "#c8f135", color: "#000", padding: "16px 36px", fontSize: 15, fontWeight: 700, letterSpacing: "0.02em" }}>
+
+          <div className="rv d3" style={{ display: "flex", alignItems: "stretch" }}>
+            <a href="/auth" style={{
+              display: "inline-flex", alignItems: "center",
+              background: "#c8f135", color: "#000",
+              padding: "16px 36px",
+              fontSize: 15, fontWeight: 700,
+              letterSpacing: "0.02em",
+              textDecoration: "none",
+            }}>
               Get started →
             </a>
-            <a href="#how" style={{ display: "inline-block", padding: "16px 36px", border: "1px solid rgba(255,255,255,0.15)", borderLeft: "none", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.55)", letterSpacing: "0.02em" }}>
+            <a href="#how" style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "16px 36px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderLeft: "none",
+              fontSize: 15, fontWeight: 500,
+              color: "rgba(255,255,255,0.45)",
+              letterSpacing: "0.01em",
+              textDecoration: "none",
+            }}>
               Learn more
             </a>
           </div>
         </div>
 
-        {/* Marquee strip */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, overflow: "hidden", borderTop: "1px solid #1a1a1a", borderBottom: "1px solid #1a1a1a" }}>
-          <div style={{ display: "flex", padding: "12px 0" }}>
+        {/* ─── Marquee strip ─── */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          borderTop: "1px solid #141414",
+          overflow: "hidden",
+          background: "rgba(0,0,0,0.5)",
+        }}>
+          <div className="marquee-track" style={{ padding: "14px 0" }}>
+            {/* Two copies — when first exits left, second seamlessly replaces it */}
             {[0, 1].map((i) => (
-              <div
-                key={i}
-                style={{ whiteSpace: "nowrap", animation: "marquee 32s linear infinite", flexShrink: 0, fontSize: 12, letterSpacing: "0.1em", color: "rgba(255,255,255,0.22)", paddingRight: 0 }}
-              >
-                {MARQUEE}
-              </div>
+              <span key={i} style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.14em",
+                color: "rgba(255,255,255,0.2)",
+                paddingRight: 0,
+                flexShrink: 0,
+              }}>
+                {MARQUEE_TEXT.repeat(8)}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
       {/* ─── HOW IT WORKS ─── */}
-      <section id="how" className="section-pad" style={{ padding: "120px 48px", background: "#000" }}>
+      <section id="how" className="sec-pad" style={{ padding: "128px 56px", background: "#000" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <p className="reveal" style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c8f135", margin: "0 0 80px" }}>
-            HOW IT WORKS
+
+          <p className="rv" style={{
+            fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "#c8f135",
+            margin: "0 0 88px",
+          }}>
+            How it works
           </p>
+
           {[
-            { n: "01", title: "Paste the enquiry", desc: "Drop in the email, message, or brief exactly as received. No formatting needed." },
-            { n: "02", title: "Clarify and scope", desc: "AI extracts goals, flags risks, and asks the right clarifying questions to fill the gaps." },
-            { n: "03", title: "Export the proposal", desc: "Get a structured scope, deliverables, timeline, and a contract-ready proposal." },
+            {
+              n: "01",
+              title: "Paste the enquiry",
+              desc: "Drop in the email, message, or brief exactly as received. No formatting or editing needed.",
+            },
+            {
+              n: "02",
+              title: "Clarify and scope",
+              desc: "AI extracts goals, flags risks, and surfaces the right clarifying questions to fill every gap.",
+            },
+            {
+              n: "03",
+              title: "Export the proposal",
+              desc: "Get a structured scope, deliverables list, timeline, and a contract-ready proposal instantly.",
+            },
           ].map((item, i) => (
-            <div key={item.n} className={`reveal d${i + 1} fi`} style={{ display: "flex", gap: 48, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 96, fontWeight: 800, color: "#171717", lineHeight: 1, letterSpacing: "-0.04em", userSelect: "none", flexShrink: 0, width: 110 }}>
+            <div key={item.n} className={`rv d${i + 1} feature-row`}>
+              {/* Ghost number */}
+              <span className="feature-num" style={{
+                fontSize: 112,
+                fontWeight: 800,
+                color: "#161616",
+                lineHeight: 1,
+                letterSpacing: "-0.05em",
+                userSelect: "none",
+                flexShrink: 0,
+                width: 130,
+                display: "block",
+              }}>
                 {item.n}
               </span>
-              <div style={{ paddingTop: 8 }}>
-                <h3 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 14px", letterSpacing: "-0.02em", color: "#fff" }}>{item.title}</h3>
-                <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, margin: 0, maxWidth: 480 }}>{item.desc}</p>
+
+              <div style={{ paddingTop: 10, flex: 1 }}>
+                <h3 style={{
+                  fontSize: 30,
+                  fontWeight: 700,
+                  margin: "0 0 14px",
+                  letterSpacing: "-0.025em",
+                  color: "#fff",
+                  lineHeight: 1.1,
+                }}>
+                  {item.title}
+                </h3>
+                <p style={{
+                  fontSize: 16,
+                  color: "rgba(255,255,255,0.4)",
+                  lineHeight: 1.75,
+                  margin: 0,
+                  maxWidth: 500,
+                }}>
+                  {item.desc}
+                </p>
+              </div>
+
+              {/* Step indicator */}
+              <div style={{
+                flexShrink: 0,
+                paddingTop: 14,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                color: "rgba(255,255,255,0.15)",
+                textTransform: "uppercase",
+              }}>
+                Step {i + 1}
               </div>
             </div>
           ))}
-          <div style={{ borderTop: "1px solid #1a1a1a" }} />
+
+          {/* Closing line */}
+          <div style={{ borderTop: "1px solid #181818" }} />
         </div>
       </section>
 
-      {/* ─── STATS ─── */}
-      <section className="section-pad" style={{ padding: "120px 48px", background: "#0a0a0a" }}>
+      {/* ─── WHY IT MATTERS ─── */}
+      <section className="sec-pad" style={{ padding: "128px 56px", background: "#050505" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <h2 className="reveal" style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, letterSpacing: "-0.03em", textAlign: "center", margin: "0 0 72px", lineHeight: 1.1, color: "#fff" }}>
-            Stop losing money<br />to scope creep
+
+          <h2 className="rv" style={{
+            fontSize: "clamp(34px, 5.5vw, 60px)",
+            fontWeight: 800,
+            letterSpacing: "-0.035em",
+            textAlign: "center",
+            margin: "0 0 80px",
+            lineHeight: 1.05,
+            color: "#fff",
+          }}>
+            Stop losing money<br />
+            <span style={{ color: "rgba(255,255,255,0.35)" }}>to scope creep</span>
           </h2>
+
           <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
             {[
-              { stat: "10hrs", desc: "saved per project on average" },
-              { stat: "3×", desc: "fewer revision requests from clients" },
-              { stat: "100%", desc: "clearer client expectations" },
+              { stat: "10hrs",  desc: "saved per project on average" },
+              { stat: "3×",     desc: "fewer revision requests from clients" },
+              { stat: "100%",   desc: "clearer expectations from day one" },
             ].map((s, i) => (
               <div
                 key={s.stat}
-                className={`reveal d${i + 1} stat-card`}
-                style={{ background: "#111", border: "1px solid #222", borderLeft: i > 0 ? "none" : "1px solid #222", padding: "48px 40px" }}
+                className={`rv d${i + 1} stat-card`}
+                style={{
+                  borderLeft: i > 0 ? "none" : "1px solid #1c1c1c",
+                }}
               >
-                <div style={{ fontSize: 52, fontWeight: 800, letterSpacing: "-0.04em", margin: "0 0 12px", color: "#fff", lineHeight: 1 }}>{s.stat}</div>
-                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>{s.desc}</div>
+                <div style={{
+                  fontSize: 56,
+                  fontWeight: 800,
+                  letterSpacing: "-0.045em",
+                  margin: "0 0 14px",
+                  color: "#fff",
+                  lineHeight: 1,
+                }}>
+                  {s.stat}
+                </div>
+                <div style={{
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.38)",
+                  lineHeight: 1.65,
+                }}>
+                  {s.desc}
+                </div>
               </div>
             ))}
           </div>
@@ -255,26 +501,63 @@ export default function HomePage() {
       </section>
 
       {/* ─── CTA ─── */}
-      <section className="section-pad" style={{ padding: "100px 48px", background: "#c8f135" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <h2 className="reveal" style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, letterSpacing: "-0.03em", color: "#000", margin: "0 0 44px", lineHeight: 1.1 }}>
+      <section className="sec-pad" style={{
+        padding: "112px 56px",
+        background: "#c8f135",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* Subtle dot grid on CTA */}
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.08) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
+          <h2 className="rv" style={{
+            fontSize: "clamp(34px, 5.5vw, 60px)",
+            fontWeight: 800,
+            letterSpacing: "-0.035em",
+            color: "#000",
+            margin: "0 0 48px",
+            lineHeight: 1.05,
+          }}>
             Ready to scope your<br />next project?
           </h2>
-          <a className="reveal d1" href="/auth" style={{ display: "inline-block", background: "#000", color: "#fff", padding: "18px 48px", fontSize: 16, fontWeight: 700, letterSpacing: "0.02em" }}>
+          <a className="rv d1 cta-btn" href="/auth">
             Start for free →
           </a>
         </div>
       </section>
 
       {/* ─── FOOTER ─── */}
-      <footer className="nav-pad" style={{ background: "#000", borderTop: "1px solid #1a1a1a", padding: "28px 48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-        <a href="/" style={{ fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "-0.02em" }}>Scope</a>
-        <div style={{ display: "flex", gap: 32 }}>
-          <a href="/dashboard" className="nl" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: 500 }}>Dashboard</a>
-          <a href="/auth" className="nl" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: 500 }}>Sign in</a>
-          <a href="/auth" className="nl" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: 500 }}>Get started</a>
+      <footer className="nav-inner" style={{
+        background: "#000",
+        borderTop: "1px solid #111",
+        padding: "32px 56px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 20,
+      }}>
+        <a href="/" style={{ fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "-0.02em", textDecoration: "none" }}>
+          Scope
+        </a>
+        <div style={{ display: "flex", gap: 36 }}>
+          {[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Sign in",   href: "/auth" },
+            { label: "Get started", href: "/auth" },
+          ].map((l) => (
+            <a key={l.label} href={l.href} className="nav-link" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", fontWeight: 500 }}>
+              {l.label}
+            </a>
+          ))}
         </div>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>© 2025 Scope. All rights reserved.</span>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>© 2025 Scope</span>
       </footer>
     </div>
   );
