@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const { projectId, ...fields } = await req.json();
     if (!projectId) return NextResponse.json({ error: "No project ID" }, { status: 400 });
 
-    const allowedFields = ["title", "clarification_answers", "proposal", "status", "scope", "key_points"];
+    const allowedFields = ["title", "clarification_answers", "proposal", "proposal_email", "status", "scope", "key_points"];
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const key of allowedFields) {
       if (key in fields) update[key] = fields[key];

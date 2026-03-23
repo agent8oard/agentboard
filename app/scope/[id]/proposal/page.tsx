@@ -18,6 +18,7 @@ interface Project {
   id: string;
   title: string;
   proposal: string;
+  proposal_email: string;
   scope: ScopeData;
   extracted_info: {
     project_type?: string;
@@ -40,12 +41,15 @@ interface SelectionPopup {
   sectionName: string;
 }
 
+// Section ids used for selective export
+const SECTION_IDS = ["summary", "scope", "deliverables", "timeline", "terms"] as const;
+type SectionId = typeof SECTION_IDS[number];
+
 const SECTIONS = [
   { id: "section-summary", label: "Project Summary" },
   { id: "section-scope", label: "Scope of Work" },
   { id: "section-deliverables", label: "Deliverables" },
   { id: "section-timeline", label: "Timeline" },
-  { id: "section-assumptions", label: "Assumptions" },
   { id: "section-terms", label: "Terms & Conditions" },
 ];
 
@@ -57,10 +61,20 @@ export default function ProposalPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [proposal, setProposal] = useState("");
+  const [proposalEmail, setProposalEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
   const [selectionPopup, setSelectionPopup] = useState<SelectionPopup | null>(null);
   const documentRef = useRef<HTMLDivElement>(null);
+
+  // Part 1 — format toggle
+  const [format, setFormat] = useState<"formal" | "email">("formal");
+
+  // Part 3 — selective export
+  const [exportMode, setExportMode] = useState(false);
+  const [selectedSections, setSelectedSections] = useState<Set<SectionId>>(
+    new Set(SECTION_IDS)
+  );
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
@@ -71,6 +85,7 @@ export default function ProposalPage() {
       .then((data) => {
         setProject(data);
         setProposal(data.proposal || "");
+        setProposalEmail(data.proposal_email || "");
         if (data.key_points && Array.isArray(data.key_points)) {
           setKeyPoints(data.key_points);
         }
@@ -78,6 +93,7 @@ export default function ProposalPage() {
       });
   }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Part 4 — sentence-level highlighting (20-char minimum)
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) {
@@ -85,9 +101,15 @@ export default function ProposalPage() {
       return;
     }
     const selectedText = selection.toString().trim();
+
+    // Part 4: minimum 20 characters before showing popup
+    if (selectedText.length < 20) {
+      setSelectionPopup(null);
+      return;
+    }
+
     if (!documentRef.current) return;
 
-    // Check if selection is inside the document container
     const range = selection.getRangeAt(0);
     if (!documentRef.current.contains(range.commonAncestorContainer)) {
       setSelectionPopup(null);
@@ -141,7 +163,6 @@ export default function ProposalPage() {
         kp.id === id ? { ...kp, explanation, loading: false } : kp
       );
       setKeyPoints(finalKeyPoints);
-      // Save to project
       await fetch("/api/scope/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,10 +197,34 @@ export default function ProposalPage() {
     await fetch("/api/scope/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project.id, proposal }) });
   }
 
+  async function saveProposalEmail(value: string) {
+    if (!project) return;
+    await fetch("/api/scope/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project.id, proposal_email: value }) });
+  }
+
   async function copyText() {
-    await navigator.clipboard.writeText(proposal);
+    const textToCopy = format === "email" ? proposalEmail : proposal;
+    await navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  // Part 3 — toggle section selection
+  function toggleSection(sectionId: SectionId) {
+    setSelectedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }
+
+  // Part 3 — helper to get className for a section
+  function sectionPrintClass(sectionId: SectionId): string {
+    return exportMode && !selectedSections.has(sectionId) ? "no-print" : "";
   }
 
   if (loading) return (
@@ -194,6 +239,8 @@ export default function ProposalPage() {
   );
 
   const scope = project.scope || {};
+  const selectedCount = selectedSections.size;
+  const totalSections = SECTION_IDS.length;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg2)" }}>
@@ -201,14 +248,26 @@ export default function ProposalPage() {
       <div style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--surface)", borderBottom: "1px solid var(--border)", padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <Link href={`/scope/${params.id}`} style={{ fontSize: 13, color: "var(--text3)" }}>← Back to scope</Link>
         <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", flex: 1 }}>{project.title || "Proposal"}</span>
+        {exportMode && (
+          <span style={{ fontSize: 13, color: "var(--text3)" }}>
+            {selectedCount} of {totalSections} sections selected
+          </span>
+        )}
         <button onClick={() => { setEditing(!editing); if (editing) saveProposal(); }} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
           {editing ? "Save ✓" : "Edit"}
         </button>
         <button onClick={copyText} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
           {copied ? "Copied!" : "Copy"}
         </button>
+        {/* Part 3 — Customize export button */}
+        <button
+          onClick={() => setExportMode((v) => !v)}
+          style={{ background: exportMode ? "var(--accent)" : "none", color: exportMode ? "var(--accent-text)" : "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer" }}
+        >
+          {exportMode ? "Done" : "Customize export"}
+        </button>
         <button onClick={() => window.print()} style={{ background: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          Export PDF
+          {exportMode ? `Export selected (${selectedCount})` : "Export PDF"}
         </button>
       </div>
 
@@ -259,117 +318,233 @@ export default function ProposalPage() {
 
         {/* Center — document */}
         <main style={{ flex: 1, maxWidth: 680, margin: "0 auto", padding: "40px 40px 80px" }} className="print-content">
-          {editing ? (
-            <textarea
-              value={proposal}
-              onChange={(e) => setProposal(e.target.value)}
-              style={{ width: "100%", minHeight: "80vh", border: "1px solid var(--border)", borderRadius: 10, padding: 24, fontSize: 15, lineHeight: 1.8, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", background: "var(--surface)", color: "var(--text)" }}
-            />
-          ) : (
-            <div ref={documentRef} style={{ userSelect: "text" }}>
-              {/* Document header */}
-              <div style={{ marginBottom: 48 }}>
-                <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-0.02em" }}>Project Proposal</h1>
-                <h2 style={{ fontSize: 20, fontWeight: 400, color: "var(--text3)", margin: "0 0 16px" }}>{project.title}</h2>
-                <p style={{ fontSize: 13, color: "var(--text4)", margin: 0 }}>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
-              </div>
 
-              {/* Project Summary */}
-              {project.extracted_info?.goals && project.extracted_info.goals.length > 0 && (
-                <div id="section-summary" data-section-name="Project Summary">
-                  <Section title="Project Summary">
-                    <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, margin: 0 }}>
-                      This proposal outlines the scope, deliverables, timeline, and terms for {project.extracted_info.project_type ? `a ${project.extracted_info.project_type} project` : "this project"}.
-                    </p>
-                  </Section>
-                </div>
-              )}
+          {/* Part 1 — Format toggle */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: "inline-flex", background: "var(--bg3)", borderRadius: 9, padding: 3 }}>
+              <button
+                onClick={() => setFormat("formal")}
+                style={{
+                  background: format === "formal" ? "var(--accent)" : "transparent",
+                  color: format === "formal" ? "var(--accent-text)" : "var(--text3)",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "7px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Formal Document
+              </button>
+              <button
+                onClick={() => setFormat("email")}
+                style={{
+                  background: format === "email" ? "var(--accent)" : "transparent",
+                  color: format === "email" ? "var(--accent-text)" : "var(--text3)",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "7px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Email Draft
+              </button>
+            </div>
+          </div>
 
-              {/* Proposal text */}
-              {proposal && (
-                <div id="section-proposal" data-section-name="Proposal">
-                  <Section title="Proposal">
-                    <div style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{proposal}</div>
-                  </Section>
+          {/* Part 1 — Email format view */}
+          {format === "email" && (
+            <div style={{ background: "#ffffff", border: "1px solid var(--border)", borderRadius: 12, padding: "32px 36px", boxShadow: "var(--shadow)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Email Draft</div>
+              {proposalEmail ? (
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const val = e.currentTarget.innerText;
+                    setProposalEmail(val);
+                    saveProposalEmail(val);
+                  }}
+                  style={{ fontSize: 15, color: "#1a1a1a", lineHeight: 1.8, whiteSpace: "pre-wrap", outline: "none", minHeight: 200 }}
+                >
+                  {proposalEmail}
                 </div>
-              )}
-
-              {/* Scope of Work */}
-              {(scope.included || scope.excluded) && (
-                <div id="section-scope" data-section-name="Scope of Work">
-                  <Section title="Scope of Work">
-                    {scope.included && scope.included.length > 0 && (
-                      <div style={{ marginBottom: 16 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Included</p>
-                        {scope.included.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 6px" }}>✓ {item}</p>)}
-                      </div>
-                    )}
-                    {scope.excluded && scope.excluded.length > 0 && (
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Not included</p>
-                        {scope.excluded.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 6px" }}>✕ {item}</p>)}
-                      </div>
-                    )}
-                  </Section>
-                </div>
-              )}
-
-              {/* Deliverables */}
-              {scope.deliverables && scope.deliverables.length > 0 && (
-                <div id="section-deliverables" data-section-name="Deliverables">
-                  <Section title="Deliverables">
-                    {scope.deliverables.map((d, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 8px" }}>{i + 1}. {d}</p>)}
-                  </Section>
-                </div>
-              )}
-
-              {/* Timeline */}
-              {scope.timeline && scope.timeline.length > 0 && (
-                <div id="section-timeline" data-section-name="Timeline">
-                  <Section title="Timeline">
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                      <thead>
-                        <tr>
-                          {["Phase", "Duration", "Milestone"].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 0", fontWeight: 600, color: "var(--text3)", borderBottom: "2px solid var(--border)" }}>{h}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {scope.timeline.map((row, i) => (
-                          <tr key={i}>
-                            <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text2)" }}>{row.phase}</td>
-                            <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.duration}</td>
-                            <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.milestone}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </Section>
-                </div>
-              )}
-
-              {/* Assumptions */}
-              {scope.assumptions && scope.assumptions.length > 0 && (
-                <div id="section-assumptions" data-section-name="Assumptions">
-                  <Section title="Assumptions">
-                    {scope.assumptions.map((a, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 8px" }}>• {a}</p>)}
-                  </Section>
-                </div>
-              )}
-
-              {/* Terms */}
-              {scope.contract_clauses && scope.contract_clauses.length > 0 && (
-                <div id="section-terms" data-section-name="Terms & Conditions">
-                  <Section title="Terms and Conditions">
-                    {scope.contract_clauses.map((clause, i) => <p key={i} style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: "0 0 14px" }}>{clause}</p>)}
-                  </Section>
-                </div>
+              ) : (
+                <p style={{ fontSize: 15, color: "#aaa", fontStyle: "italic", margin: 0 }}>
+                  Email draft will generate when you build the scope.
+                </p>
               )}
             </div>
+          )}
+
+          {/* Formal document view */}
+          {format === "formal" && (
+            editing ? (
+              <textarea
+                value={proposal}
+                onChange={(e) => setProposal(e.target.value)}
+                style={{ width: "100%", minHeight: "80vh", border: "1px solid var(--border)", borderRadius: 10, padding: 24, fontSize: 15, lineHeight: 1.8, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", background: "var(--surface)", color: "var(--text)" }}
+              />
+            ) : (
+              <div ref={documentRef} style={{ userSelect: "text" }}>
+                {/* Document header */}
+                <div style={{ marginBottom: 48 }}>
+                  <h1 style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-0.02em" }}>Project Proposal</h1>
+                  <h2 style={{ fontSize: 20, fontWeight: 400, color: "var(--text3)", margin: "0 0 16px" }}>{project.title}</h2>
+                  <p style={{ fontSize: 13, color: "var(--text4)", margin: 0 }}>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+                </div>
+
+                {/* Project Summary */}
+                {project.extracted_info?.goals && project.extracted_info.goals.length > 0 && (
+                  <div id="section-summary" data-section-name="Project Summary" className={sectionPrintClass("summary")} style={{ position: "relative" }}>
+                    {exportMode && (
+                      <SectionCheckbox
+                        checked={selectedSections.has("summary")}
+                        onChange={() => toggleSection("summary")}
+                      />
+                    )}
+                    <Section title="Project Summary">
+                      <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, margin: 0 }}>
+                        This proposal outlines the scope, deliverables, timeline, and terms for {project.extracted_info.project_type ? `a ${project.extracted_info.project_type} project` : "this project"}.
+                      </p>
+                    </Section>
+                  </div>
+                )}
+
+                {/* Proposal text */}
+                {proposal && (
+                  <div id="section-proposal" data-section-name="Proposal">
+                    <Section title="Proposal">
+                      <div style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{proposal}</div>
+                    </Section>
+                  </div>
+                )}
+
+                {/* Scope of Work */}
+                {(scope.included || scope.excluded) && (
+                  <div id="section-scope" data-section-name="Scope of Work" className={sectionPrintClass("scope")} style={{ position: "relative" }}>
+                    {exportMode && (
+                      <SectionCheckbox
+                        checked={selectedSections.has("scope")}
+                        onChange={() => toggleSection("scope")}
+                      />
+                    )}
+                    <Section title="Scope of Work">
+                      {scope.included && scope.included.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Included</p>
+                          {scope.included.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 6px" }}>✓ {item}</p>)}
+                        </div>
+                      )}
+                      {scope.excluded && scope.excluded.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Not included</p>
+                          {scope.excluded.map((item, i) => <p key={i} style={{ fontSize: 14, color: "var(--text3)", margin: "0 0 6px" }}>✕ {item}</p>)}
+                        </div>
+                      )}
+                    </Section>
+                  </div>
+                )}
+
+                {/* Deliverables */}
+                {scope.deliverables && scope.deliverables.length > 0 && (
+                  <div id="section-deliverables" data-section-name="Deliverables" className={sectionPrintClass("deliverables")} style={{ position: "relative" }}>
+                    {exportMode && (
+                      <SectionCheckbox
+                        checked={selectedSections.has("deliverables")}
+                        onChange={() => toggleSection("deliverables")}
+                      />
+                    )}
+                    <Section title="Deliverables">
+                      {scope.deliverables.map((d, i) => <p key={i} style={{ fontSize: 14, color: "var(--text2)", margin: "0 0 8px" }}>{i + 1}. {d}</p>)}
+                    </Section>
+                  </div>
+                )}
+
+                {/* Timeline */}
+                {scope.timeline && scope.timeline.length > 0 && (
+                  <div id="section-timeline" data-section-name="Timeline" className={sectionPrintClass("timeline")} style={{ position: "relative" }}>
+                    {exportMode && (
+                      <SectionCheckbox
+                        checked={selectedSections.has("timeline")}
+                        onChange={() => toggleSection("timeline")}
+                      />
+                    )}
+                    <Section title="Timeline">
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                        <thead>
+                          <tr>
+                            {["Phase", "Duration", "Milestone"].map((h) => <th key={h} style={{ textAlign: "left", padding: "8px 0", fontWeight: 600, color: "var(--text3)", borderBottom: "2px solid var(--border)" }}>{h}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scope.timeline.map((row, i) => (
+                            <tr key={i}>
+                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text2)" }}>{row.phase}</td>
+                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.duration}</td>
+                              <td style={{ padding: "10px 0", borderBottom: "1px solid var(--bg3)", color: "var(--text3)" }}>{row.milestone}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </Section>
+                  </div>
+                )}
+
+                {/* Terms — Assumptions section removed from here (Part 5) */}
+                {scope.contract_clauses && scope.contract_clauses.length > 0 && (
+                  <div id="section-terms" data-section-name="Terms & Conditions" className={sectionPrintClass("terms")} style={{ position: "relative" }}>
+                    {exportMode && (
+                      <SectionCheckbox
+                        checked={selectedSections.has("terms")}
+                        onChange={() => toggleSection("terms")}
+                      />
+                    )}
+                    <Section title="Terms and Conditions">
+                      {scope.contract_clauses.map((clause, i) => <p key={i} style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: "0 0 14px" }}>{clause}</p>)}
+                    </Section>
+                  </div>
+                )}
+
+                {/* Part 5 — Assumptions as internal notes, outside export area */}
+                {scope.assumptions && scope.assumptions.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 32,
+                      background: "var(--bg2)",
+                      border: "2px dashed var(--border)",
+                      borderRadius: 12,
+                      padding: "24px 28px",
+                    }}
+                    className="no-print"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        For your reference only — not included in proposal
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "var(--text4)", fontStyle: "italic", margin: "0 0 12px" }}>
+                      These assumptions were made when generating this scope. Review them before sending.
+                    </p>
+                    {scope.assumptions.map((a, i) => (
+                      <div key={i} style={{ fontSize: 13, color: "var(--text3)", fontStyle: "italic", padding: "4px 0", borderBottom: i < scope.assumptions!.length - 1 ? "1px solid var(--border)" : "none" }}>
+                        • {a}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
           )}
         </main>
 
         {/* Right panel — key points */}
-        <aside style={{ width: 300, flexShrink: 0, paddingTop: 40 }}>
+        <aside style={{ width: 300, flexShrink: 0, paddingTop: 40 }} className="no-print">
           <div style={{ position: "sticky", top: 80 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
               Key Points {keyPoints.length > 0 && `(${keyPoints.length})`}
@@ -382,7 +557,6 @@ export default function ProposalPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
               {keyPoints.map((kp, idx) => (
                 <div key={kp.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", position: "relative", boxShadow: "var(--shadow)" }}>
-                  {/* Delete button */}
                   <button
                     onClick={() => deleteKeyPoint(kp.id)}
                     style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--text4)", lineHeight: 1, padding: "2px 4px" }}
@@ -390,7 +564,6 @@ export default function ProposalPage() {
                   >
                     ×
                   </button>
-                  {/* Number badge */}
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8, paddingRight: 20 }}>
                     <span style={{ width: 22, height: 22, background: "var(--accent)", color: "var(--accent-text)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                       {idx + 1}
@@ -399,7 +572,6 @@ export default function ProposalPage() {
                       &ldquo;{kp.text.length > 80 ? kp.text.slice(0, 80) + "…" : kp.text}&rdquo;
                     </p>
                   </div>
-                  {/* Explanation */}
                   {kp.loading ? (
                     <div style={{ fontSize: 13, color: "var(--text4)", display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid var(--border)", borderTopColor: "var(--text3)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
@@ -421,6 +593,7 @@ export default function ProposalPage() {
         }
         @media print {
           aside { display: none !important; }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>
@@ -432,6 +605,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div style={{ marginBottom: 40 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", margin: "0 0 16px", paddingBottom: 12, borderBottom: "2px solid var(--text)" }}>{title}</h2>
       {children}
+    </div>
+  );
+}
+
+function SectionCheckbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <div style={{ position: "absolute", top: 4, left: -28, zIndex: 2 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--accent)" }}
+      />
     </div>
   );
 }
