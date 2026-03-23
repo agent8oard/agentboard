@@ -91,7 +91,11 @@ export default function ProposalPage() {
       .eq("id", projectId)
       .single()
       .then(({ data, error }: { data: Project | null; error: unknown }) => {
+        console.log("Proposal page fetch - error:", error, "data:", data);
         if (error || !data) { setLoading(false); return; }
+        console.log("Proposal:", data.proposal);
+        console.log("Proposal email:", data.proposal_email);
+        console.log("Scope:", data.scope);
         setProject(data);
         setProposal(data.proposal || "");
         setProposalEmail(data.proposal_email || "");

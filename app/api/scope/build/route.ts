@@ -108,7 +108,7 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
       result = JSON.parse(match[0]);
     }
 
-    await supabase.from("scope_projects").update({
+    const { error: updateError } = await supabase.from("scope_projects").update({
       scope: result.scope,
       proposal: result.proposal,
       proposal_email: result.proposal_email,
@@ -117,6 +117,12 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
+    if (updateError) {
+      console.error("DB update error:", updateError);
+      return NextResponse.json({ error: "Failed to save to database: " + updateError.message }, { status: 500 });
+    }
+
+    console.log("Build route: saved successfully, returning data");
     return NextResponse.json({ scope: result.scope, proposal: result.proposal, proposal_email: result.proposal_email, status: "complete" });
   } catch (err: unknown) {
     console.error("Build error:", err);

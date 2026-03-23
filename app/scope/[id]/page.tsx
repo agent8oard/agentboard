@@ -115,6 +115,7 @@ export default function ScopeProjectPage() {
       const res = await fetch("/api/scope/build", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: project.id, answers }) });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed to build scope"); }
       const data = await res.json();
+      console.log("buildScope response:", data);
       setProject((prev) => prev ? { ...prev, ...data, status: "complete" } : prev);
       setTimeout(() => setScopeVisible(true), 50);
     } catch (err: unknown) {
