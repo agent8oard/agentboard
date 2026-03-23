@@ -14,24 +14,25 @@ interface ScopeData {
   contract_clauses?: string[];
 }
 
-interface Project {
-  id: string;
-  title: string;
-  proposal: string;
-  proposal_email: string;
-  scope: ScopeData;
-  extracted_info: {
-    project_type?: string;
-    goals?: string[];
-  };
-}
-
 interface KeyPoint {
   id: string;
   text: string;
   explanation: string;
   sectionName: string;
   loading?: boolean;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  proposal: string;
+  proposal_email: string;
+  scope: ScopeData;
+  key_points: KeyPoint[];
+  extracted_info: {
+    project_type?: string;
+    goals?: string[];
+  };
 }
 
 interface SelectionPopup {
@@ -77,12 +78,20 @@ export default function ProposalPage() {
   );
 
   useEffect(() => {
+    const projectId = params.id;
+    if (!projectId) return;
+
     supabase.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
       if (!data.user) { router.push("/auth"); return; }
     });
-    fetch(`/api/scope/save?id=${params.id}`)
-      .then((r) => r.json())
-      .then((data) => {
+
+    supabase
+      .from("scope_projects")
+      .select("*")
+      .eq("id", projectId)
+      .single()
+      .then(({ data, error }: { data: Project | null; error: unknown }) => {
+        if (error || !data) { setLoading(false); return; }
         setProject(data);
         setProposal(data.proposal || "");
         setProposalEmail(data.proposal_email || "");
