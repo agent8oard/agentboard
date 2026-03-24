@@ -53,11 +53,11 @@ export async function middleware(request: NextRequest) {
     )
     const { data: profile } = await serviceSupabase
       .from('profiles')
-      .select('subscription_status')
+      .select('subscription_status, is_developer')
       .eq('id', user.id)
       .single()
 
-    const hasAccess = profile?.subscription_status === 'active'
+    const hasAccess = profile?.subscription_status === 'active' || profile?.is_developer === true
 
     if (!hasAccess && pathname !== '/payment') {
       const url = request.nextUrl.clone()

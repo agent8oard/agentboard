@@ -12,6 +12,12 @@ function AuthForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const isDeveloperFlow = searchParams.get("developer") === "true";
+
+  async function activateDeveloper() {
+    await fetch("/api/dev/activate", { method: "POST" });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setSuccess(""); setLoading(true);
@@ -24,6 +30,7 @@ function AuthForm() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.session) {
+          if (isDeveloperFlow) await activateDeveloper();
           window.location.href = "/dashboard";
         } else {
           setSuccess("Check your email to confirm your account.");
@@ -32,6 +39,7 @@ function AuthForm() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.session) {
+          if (isDeveloperFlow) await activateDeveloper();
           const redirect = searchParams.get("redirect") || "/dashboard";
           window.location.href = redirect;
         }

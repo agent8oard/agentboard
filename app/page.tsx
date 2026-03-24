@@ -166,6 +166,9 @@ export default function HomePage() {
           Scope
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+          <a href="/dev" style={{ fontSize: 12, color: "rgba(255,255,255,0.18)", fontWeight: 400, textDecoration: "none" }}>
+            Dev access
+          </a>
           <a href="/auth" className="nav-link" style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
             Sign in
           </a>
