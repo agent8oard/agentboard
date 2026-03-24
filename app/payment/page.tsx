@@ -119,6 +119,10 @@ export default function PaymentPage() {
             Cancel anytime. No lock-in.
           </p>
         </div>
+
+        <p style={{ marginTop: 32, fontSize: 11, color: "#333333", textAlign: "center" }}>
+          <a href="/dev" style={{ color: "#333333", textDecoration: "none" }}>Developer access</a>
+        </p>
       </div>
     </div>
   );

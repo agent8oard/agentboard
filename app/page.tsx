@@ -248,7 +248,7 @@ export default function HomePage() {
               letterSpacing: "0.02em",
               textDecoration: "none",
             }}>
-              Get started →
+              Start scoping →
             </a>
             <a href="#how" style={{
               display: "inline-flex", alignItems: "center",
@@ -453,13 +453,21 @@ export default function HomePage() {
             fontWeight: 800,
             letterSpacing: "-0.035em",
             color: "#000",
-            margin: "0 0 48px",
+            margin: "0 0 16px",
             lineHeight: 1.05,
           }}>
-            Ready to scope your<br />next project?
+            Your next proposal.<br />Done in minutes.
           </h2>
-          <a className="rv d1 cta-btn" href="/auth">
-            Start for free →
+          <p className="rv d1" style={{
+            fontSize: 16,
+            color: "rgba(0,0,0,0.5)",
+            margin: "0 0 40px",
+            lineHeight: 1.6,
+          }}>
+            Join freelancers who stopped losing money to scope creep.
+          </p>
+          <a className="rv d2 cta-btn" href="/auth">
+            Get started →
           </a>
         </div>
       </section>
