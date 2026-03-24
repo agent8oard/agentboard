@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import ProductShowcase from "./ProductShowcase";
 
 const MARQUEE_TEXT = "SCOPE · PROPOSAL · CLARITY · FREELANCE · PROTECT YOUR WORK · ";
 
@@ -431,6 +432,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ─── PRODUCT SHOWCASE ─── */}
+      <ProductShowcase />
 
       {/* ─── CTA ─── */}
       <section className="sec-pad" style={{
