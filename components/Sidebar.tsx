@@ -15,7 +15,7 @@ export default function Sidebar() {
     let mounted = true;
 
     // Dev mode (no session required)
-    if (localStorage.getItem("dev_mode") === "true") {
+    if (localStorage.getItem("dev_token")) {
       setFullName("Developer");
       setIsDeveloper(true);
       return;

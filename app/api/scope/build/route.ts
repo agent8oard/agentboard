@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { rateLimit } from "@/lib/rateLimit";
+import { sanitizeText } from "@/lib/sanitize";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -12,36 +14,49 @@ export async function POST(req: NextRequest) {
     const authClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
     );
 
     const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Rate limit: 10 per minute per user
+    const allowed = await rateLimit(`build:${user.id}`, 10, 60);
+    if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+    const body = await req.json();
+    const { projectId, answers } = body;
+
+    if (!projectId || typeof projectId !== "string") {
+      return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+    }
+
+    // Sanitize answers (each capped at 2000 chars)
+    const cleanAnswers: Record<string, string> = {};
+    if (answers && typeof answers === "object") {
+      for (const [key, val] of Object.entries(answers)) {
+        if (typeof val === "string") {
+          cleanAnswers[key] = sanitizeText(val, 2000);
+        }
+      }
+    }
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
     );
 
-    const { projectId, answers } = await req.json();
-    if (!projectId) return NextResponse.json({ error: "No project ID" }, { status: 400 });
-
-    const { data: project } = await supabase.from("scope_projects").select("*").eq("id", projectId).eq("user_id", user.id).single();
+    const { data: project } = await supabase
+      .from("scope_projects")
+      .select("*")
+      .eq("id", projectId)
+      .eq("user_id", user.id)
+      .single();
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
     const questionsAndAnswers = (project.clarifying_questions || [])
-      .map((q: string, i: number) => `Q: ${q}\nA: ${(answers || {})[i] || "(no answer provided)"}`)
+      .map((q: string, i: number) => `Q: ${q}\nA: ${cleanAnswers[i] || "(no answer provided)"}`)
       .join("\n\n");
 
     const prompt = `You are an expert project manager and proposal writer for freelancers and agencies. Based on the following client enquiry and clarifying answers, generate a comprehensive project scope and TWO proposal formats.
@@ -112,20 +127,19 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
       scope: result.scope,
       proposal: result.proposal,
       proposal_email: result.proposal_email,
-      clarification_answers: answers || {},
+      clarification_answers: cleanAnswers,
       status: "complete",
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
     if (updateError) {
       console.error("DB update error:", updateError);
-      return NextResponse.json({ error: "Failed to save to database: " + updateError.message }, { status: 500 });
+      return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
     }
 
-    console.log("Build route: saved successfully, returning data");
     return NextResponse.json({ scope: result.scope, proposal: result.proposal, proposal_email: result.proposal_email, status: "complete" });
   } catch (err: unknown) {
     console.error("Build error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

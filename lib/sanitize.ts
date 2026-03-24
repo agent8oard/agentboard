@@ -28,3 +28,14 @@ export function sanitizeNumber(value: unknown, fallback = 0): number {
   const n = parseFloat(String(value))
   return isNaN(n) || !isFinite(n) ? fallback : Math.abs(n)
 }
+
+// Strip all HTML tags — safe for user text sent to AI (no SQL mangling)
+export function sanitizeText(input: string, maxLength: number): string {
+  if (!input || typeof input !== 'string') return ''
+  return input
+    .trim()
+    .slice(0, maxLength)
+    .replace(/<[^>]*>/g, '')       // strip HTML tags
+    .replace(/javascript:/gi, '')  // strip JS URLs
+    .replace(/\0/g, '')            // strip null bytes
+}

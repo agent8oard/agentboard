@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { rateLimit, getIp } from "@/lib/rateLimit";
+import { sanitizeText } from "@/lib/sanitize";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
+    const allowed = await rateLimit(`explain:${getIp(req)}`, 30, 60);
+    if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
     const cookieStore = await cookies();
     const authClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,10 +21,16 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { selectedText, projectId } = await req.json();
-    if (!selectedText) return NextResponse.json({ error: "No text" }, { status: 400 });
+    const body = await req.json();
+    const { selectedText, projectId } = body;
 
-    // projectId is accepted but not required for the AI call
+    if (!selectedText || typeof selectedText !== "string" || !selectedText.trim()) {
+      return NextResponse.json({ error: "selectedText is required" }, { status: 400 });
+    }
+
+    const cleanText = sanitizeText(selectedText, 5000);
+    if (!cleanText) return NextResponse.json({ error: "selectedText cannot be empty" }, { status: 400 });
+
     void projectId;
 
     const message = await anthropic.messages.create({
@@ -29,7 +40,7 @@ export async function POST(req: NextRequest) {
         role: "user",
         content: `You are a freelance business advisor. A freelancer is reviewing this text from a client proposal:
 
-"${selectedText}"
+"${cleanText}"
 
 In 2-3 sentences, explain why this specific point matters for the freelancer — what risk, opportunity, or implication it carries. Be direct and practical.`
       }]
@@ -40,6 +51,7 @@ In 2-3 sentences, explain why this specific point matters for the freelancer —
 
     return NextResponse.json({ explanation: content.text });
   } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Server error" }, { status: 500 });
+    console.error("Explain keypoint error:", err);
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

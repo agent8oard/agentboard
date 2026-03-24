@@ -6,14 +6,29 @@ export default function DevPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password === "VitaminC2014") {
-      localStorage.setItem("dev_mode", "true");
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/dev/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Incorrect password");
+        return;
+      }
+      localStorage.setItem("dev_token", data.token);
       router.replace("/dashboard");
-    } else {
-      setError("Incorrect password");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -40,8 +55,8 @@ export default function DevPage() {
               {error}
             </p>
           )}
-          <button type="submit" style={buttonStyle}>
-            Enter developer mode →
+          <button type="submit" disabled={loading} style={{ ...buttonStyle, background: loading ? "#9ab52a" : "#c8f135", cursor: loading ? "not-allowed" : "pointer" }}>
+            {loading ? "Verifying..." : "Enter developer mode →"}
           </button>
         </form>
       </div>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { rateLimit, getIp } from "@/lib/rateLimit";
+import { sanitizeText } from "@/lib/sanitize";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -12,41 +14,43 @@ export async function POST(req: NextRequest) {
     const authClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
     );
 
     const { data: { user } } = await authClient.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Rate limit: 10 per minute per user
+    const allowed = await rateLimit(`extract:${user.id}`, 10, 60);
+    if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+    const body = await req.json();
+    const rawEnquiry = body?.enquiry;
+
+    if (!rawEnquiry || typeof rawEnquiry !== "string" || !rawEnquiry.trim()) {
+      return NextResponse.json({ error: "enquiry is required" }, { status: 400 });
+    }
+
+    const enquiry = sanitizeText(rawEnquiry, 10000);
+    if (!enquiry) return NextResponse.json({ error: "enquiry cannot be empty" }, { status: 400 });
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll() {},
-        },
-      }
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
     );
 
-    const { enquiry } = await req.json();
-    if (!enquiry) return NextResponse.json({ error: "No enquiry provided" }, { status: 400 });
-
-    // Create project first
     const { data: project, error: insertError } = await supabase
       .from("scope_projects")
       .insert({ user_id: user.id, original_enquiry: enquiry, status: "draft" })
       .select()
       .single();
 
-    if (insertError || !project) return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    if (insertError || !project) {
+      console.error("Insert error:", insertError);
+      return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    }
 
-    // Extract with Claude
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -81,7 +85,6 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
     try {
       extracted = JSON.parse(content.text);
     } catch {
-      // Try to extract JSON from the text
       const match = content.text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Failed to parse AI response");
       extracted = JSON.parse(match[0]);
@@ -89,7 +92,6 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
 
     const { suggested_title, clarifying_questions, risk_flags, ...extractedInfo } = extracted;
 
-    // Update project
     await supabase.from("scope_projects").update({
       title: suggested_title,
       extracted_info: extractedInfo,
@@ -101,6 +103,6 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
     return NextResponse.json({ projectId: project.id, title: suggested_title, extracted: extractedInfo });
   } catch (err: unknown) {
     console.error("Extract error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

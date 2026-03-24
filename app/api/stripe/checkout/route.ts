@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { rateLimit, getIp } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const allowed = await rateLimit(`checkout:${getIp(req)}`, 5, 60)
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
     const cookieStore = await cookies()
     const authClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

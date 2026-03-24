@@ -11,7 +11,7 @@ export default function DevModeGuard() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("dev_mode") === "true") {
+    if (localStorage.getItem("dev_token")) {
       setReady(true);
     } else {
       router.replace("/auth");
