@@ -1,9 +1,7 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function DevPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,26 +10,14 @@ export default function DevPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      const res = await fetch("/api/dev/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Incorrect password");
-        return;
-      }
-      localStorage.setItem("dev_token", data.token);
-      localStorage.setItem("dev_mode", "true");
-      document.cookie = "dev_mode=true; path=/; max-age=31536000";
-      window.location.href = "/dashboard";
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
+    if (password !== "VitaminC2014") {
+      setError("Incorrect password");
       setLoading(false);
+      return;
     }
+    localStorage.setItem("dev_mode", "true");
+    document.cookie = "dev_mode=true; path=/; max-age=31536000";
+    window.location.href = "/dashboard";
   }
 
   return (

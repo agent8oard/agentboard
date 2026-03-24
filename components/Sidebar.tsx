@@ -14,8 +14,8 @@ export default function Sidebar() {
   useEffect(() => {
     let mounted = true;
 
-    // Dev mode (no session required)
-    if (localStorage.getItem("dev_token") || localStorage.getItem("dev_mode") === "true") {
+    // Dev mode — cookie-only, no DB check
+    if (localStorage.getItem("dev_mode") === "true") {
       setFullName("Developer");
       setIsDeveloper(true);
       return;
@@ -26,10 +26,9 @@ export default function Sidebar() {
       const u = data.session?.user;
       if (!u) return;
       setEmail(u.email || "");
-      supabase.from("profiles").select("full_name, is_developer").eq("id", u.id).single().then(({ data: p }) => {
+      supabase.from("profiles").select("full_name").eq("id", u.id).single().then(({ data: p }) => {
         if (mounted && p) {
           setFullName(p.full_name || "");
-          setIsDeveloper(p.is_developer === true);
         }
       });
     });
