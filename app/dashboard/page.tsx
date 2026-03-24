@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Sidebar from "@/components/Sidebar";
 import Link from "next/link";
 import { Greeting } from "./Greeting";
 import DevBanner from "./DevBanner";
+import DevModeGuard from "./DevModeGuard";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth");
+  if (!user) return <DevModeGuard />;
 
   const serviceSupabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -13,6 +13,14 @@ export default function Sidebar() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Dev mode (no session required)
+    if (localStorage.getItem("dev_mode") === "true") {
+      setFullName("Developer");
+      setIsDeveloper(true);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       const u = data.session?.user;

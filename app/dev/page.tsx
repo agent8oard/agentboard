@@ -1,94 +1,20 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-function DevPageInner() {
+export default function DevPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [notSignedIn, setNotSignedIn] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      const u = data.session?.user;
-      if (!u) {
-        setNotSignedIn(true);
-        setChecking(false);
-        return;
-      }
-      // Already a developer? Redirect to dashboard.
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_developer")
-        .eq("id", u.id)
-        .single();
-      if (profile?.is_developer) {
-        router.replace("/dashboard");
-        return;
-      }
-      setChecking(false);
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/dev/unlock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error || "Incorrect password");
-      setLoading(false);
-      return;
+    if (password === "VitaminC2014") {
+      localStorage.setItem("dev_mode", "true");
+      router.replace("/dashboard");
+    } else {
+      setError("Incorrect password");
     }
-
-    router.replace("/dashboard");
-  }
-
-  if (checking) return null;
-
-  if (notSignedIn) {
-    return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <p style={labelStyle}>DEVELOPER ACCESS</p>
-          <h1 style={headingStyle}>Developer Portal</h1>
-          <p style={subtitleStyle}>You need to be signed in to access the developer portal.</p>
-          <a
-            href="/auth?redirect=/dev"
-            style={{
-              display: "block",
-              width: "100%",
-              background: "#c8f135",
-              color: "#000",
-              border: "none",
-              height: 52,
-              fontSize: 15,
-              fontWeight: 700,
-              letterSpacing: "0.02em",
-              cursor: "pointer",
-              textDecoration: "none",
-              textAlign: "center",
-              lineHeight: "52px",
-              boxSizing: "border-box",
-            }}
-          >
-            Sign in first →
-          </a>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -104,8 +30,9 @@ function DevPageInner() {
             type="password"
             placeholder="Enter developer password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => { setPassword(e.target.value); setError(""); }}
             style={inputStyle}
+            className="dev-input"
             autoFocus
           />
           {error && (
@@ -113,36 +40,13 @@ function DevPageInner() {
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              display: "block",
-              width: "100%",
-              background: loading ? "#9ab52a" : "#c8f135",
-              color: "#000",
-              border: "none",
-              height: 52,
-              fontSize: 15,
-              fontWeight: 700,
-              letterSpacing: "0.02em",
-              cursor: loading ? "not-allowed" : "pointer",
-              marginTop: 12,
-            }}
-          >
-            {loading ? "Verifying..." : "Enter developer mode →"}
+          <button type="submit" style={buttonStyle}>
+            Enter developer mode →
           </button>
         </form>
       </div>
+      <style>{`.dev-input:focus { border-color: #c8f135 !important; outline: none; }`}</style>
     </div>
-  );
-}
-
-export default function DevPage() {
-  return (
-    <Suspense>
-      <DevPageInner />
-    </Suspense>
   );
 }
 
@@ -173,7 +77,6 @@ const cardStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-start",
-  gap: 0,
 };
 
 const labelStyle: React.CSSProperties = {
@@ -207,7 +110,20 @@ const inputStyle: React.CSSProperties = {
   color: "#fff",
   padding: "14px 16px",
   fontSize: 14,
-  outline: "none",
   boxSizing: "border-box",
   fontFamily: "inherit",
+};
+
+const buttonStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  background: "#c8f135",
+  color: "#000",
+  border: "none",
+  height: 52,
+  fontSize: 15,
+  fontWeight: 700,
+  letterSpacing: "0.02em",
+  cursor: "pointer",
+  marginTop: 12,
 };
