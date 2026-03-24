@@ -158,6 +158,9 @@ function AuthForm() {
                 Back to <span style={{ color: "var(--text)", fontWeight: 700 }}>sign in</span>
               </button>
             )}
+            <a href="/dev" style={{ fontSize: 12, color: "var(--text4)", textDecoration: "none", marginTop: 6 }}>
+              Developer access
+            </a>
           </div>
         </div>
       </div>

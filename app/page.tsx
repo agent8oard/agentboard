@@ -489,10 +489,7 @@ export default function HomePage() {
             </a>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>© 2025 Scope</span>
-          <a href="/dev" style={{ fontSize: 12, color: "rgba(255,255,255,0.12)", textDecoration: "none", fontWeight: 400 }}>Developer access</a>
-        </div>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>© 2025 Scope</span>
       </footer>
     </div>
   );
