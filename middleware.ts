@@ -53,12 +53,12 @@ export async function middleware(request: NextRequest) {
     )
     const { data: profile } = await serviceSupabase
       .from('profiles')
-      .select('subscription_status, is_developer')
+      .select('subscription_status')
       .eq('id', user.id)
       .single()
 
     const devCookie = request.cookies.get('dev_mode')?.value === 'true'
-    const hasAccess = profile?.subscription_status === 'active' || devCookie || profile?.is_developer === true
+    const hasAccess = profile?.subscription_status === 'active' || devCookie
 
     if (!hasAccess && pathname !== '/payment') {
       const url = request.nextUrl.clone()

@@ -13,7 +13,7 @@ export default function DevPage() {
     }
     localStorage.setItem("dev_mode", "true");
     document.cookie = "dev_mode=true; path=/; max-age=86400";
-    window.location.href = "/dashboard";
+    window.location.href = "/dev/dashboard";
   }
 
   return (
