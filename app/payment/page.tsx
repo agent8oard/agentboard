@@ -17,14 +17,29 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user?.email ?? null);
+    supabase.auth.getSession().then(async ({ data }) => {
+      const user = data.session?.user ?? null;
+      setUserEmail(user?.email ?? null);
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+        setUserFullName(profile?.full_name ?? null);
+      }
       setAuthChecked(true);
     });
   }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
 
   async function handleSubscribe() {
     setLoading(true);
@@ -65,12 +80,29 @@ export default function PaymentPage() {
             marginBottom: 32,
             textAlign: "left",
             fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
           }}>
             {userEmail ? (
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                Subscribing as:{" "}
-                <span style={{ color: "#fff", fontWeight: 700 }}>{userEmail}</span>
-              </span>
+              <>
+                <div>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginBottom: 2 }}>Subscribing as</div>
+                  <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>
+                    {userFullName || userEmail}
+                  </div>
+                  {userFullName && (
+                    <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>{userEmail}</div>
+                  )}
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(255,255,255,0.3)", fontWeight: 500, padding: 0, flexShrink: 0 }}
+                >
+                  Sign out
+                </button>
+              </>
             ) : (
               <span style={{ color: "rgba(255,255,255,0.45)" }}>
                 Please{" "}

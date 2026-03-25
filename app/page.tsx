@@ -8,16 +8,26 @@ const MARQUEE_TEXT = "SCOPE · PROPOSAL · CLARITY · FREELANCE · PROTECT YOUR 
 export default function HomePage() {
   const [scrolled, setScrolled] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user?.email ?? null);
+    supabase.auth.getSession().then(async ({ data }) => {
+      const user = data.session?.user ?? null;
+      setUserEmail(user?.email ?? null);
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+        setUserFullName(profile?.full_name ?? null);
+      }
     });
   }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    setUserEmail(null);
+    window.location.href = "/";
   }
 
   /* ─── Nav blur on scroll ─── */
@@ -184,7 +194,9 @@ export default function HomePage() {
           </a>
           {userEmail ? (
             <>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{userEmail}</span>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>
+                {userFullName || userEmail}
+              </span>
               <a href="/dashboard" style={{
                 background: "#c8f135", color: "#000",
                 padding: "10px 22px",
@@ -196,7 +208,7 @@ export default function HomePage() {
               </a>
               <button onClick={handleSignOut} style={{
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 13, color: "rgba(255,255,255,0.25)", fontWeight: 500, padding: 0,
+                fontSize: 13, color: "#444", fontWeight: 500, padding: 0,
               }}>
                 Sign out
               </button>

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 function AuthForm() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,6 +24,13 @@ function AuthForm() {
       } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        if (data.user && fullName.trim()) {
+          await supabase.from("profiles").upsert({
+            id: data.user.id,
+            full_name: fullName.trim(),
+            updated_at: new Date().toISOString(),
+          });
+        }
         if (data.session) {
           window.location.href = "/dashboard";
         } else {
@@ -88,6 +96,18 @@ function AuthForm() {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {mode === "signup" && (
+              <input
+                className="auth-input"
+                style={inputStyle}
+                type="text"
+                placeholder="Your name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                autoComplete="name"
+              />
+            )}
             <input
               className="auth-input"
               style={inputStyle}
