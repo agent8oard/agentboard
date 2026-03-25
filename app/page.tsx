@@ -1,11 +1,24 @@
 "use client";
 import { useState, useEffect } from "react";
 import ProductShowcase from "./ProductShowcase";
+import { supabase } from "@/lib/supabase";
 
 const MARQUEE_TEXT = "SCOPE · PROPOSAL · CLARITY · FREELANCE · PROTECT YOUR WORK · ";
 
 export default function HomePage() {
   const [scrolled, setScrolled] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user?.email ?? null);
+    });
+  }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setUserEmail(null);
+  }
 
   /* ─── Nav blur on scroll ─── */
   useEffect(() => {
@@ -165,22 +178,45 @@ export default function HomePage() {
         <a href="/" style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "-0.02em", textDecoration: "none" }}>
           Scope
         </a>
-        <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <a href="/dev" style={{ fontSize: 12, color: "#444444", fontWeight: 400, textDecoration: "none" }}>
             Dev access
           </a>
-          <a href="/auth" className="nav-link" style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-            Sign in
-          </a>
-          <a href="/auth" style={{
-            background: "#c8f135", color: "#000",
-            padding: "10px 22px",
-            fontSize: 13, fontWeight: 700,
-            letterSpacing: "0.03em",
-            textDecoration: "none",
-          }}>
-            Get started →
-          </a>
+          {userEmail ? (
+            <>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{userEmail}</span>
+              <a href="/dashboard" style={{
+                background: "#c8f135", color: "#000",
+                padding: "10px 22px",
+                fontSize: 13, fontWeight: 700,
+                letterSpacing: "0.03em",
+                textDecoration: "none",
+              }}>
+                Dashboard →
+              </a>
+              <button onClick={handleSignOut} style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 13, color: "rgba(255,255,255,0.25)", fontWeight: 500, padding: 0,
+              }}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <a href="/auth" className="nav-link" style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+                Sign in
+              </a>
+              <a href="/auth" style={{
+                background: "#c8f135", color: "#000",
+                padding: "10px 22px",
+                fontSize: 13, fontWeight: 700,
+                letterSpacing: "0.03em",
+                textDecoration: "none",
+              }}>
+                Get started →
+              </a>
+            </>
+          )}
         </div>
       </nav>
 

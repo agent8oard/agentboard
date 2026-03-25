@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 const FEATURES = [
   "Unlimited projects",
@@ -15,6 +16,15 @@ export default function PaymentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user?.email ?? null);
+      setAuthChecked(true);
+    });
+  }, []);
 
   async function handleSubscribe() {
     setLoading(true);
@@ -45,6 +55,32 @@ export default function PaymentPage() {
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
       <div style={{ width: "100%", maxWidth: 480, textAlign: "center" }}>
+
+        {/* Auth info bar */}
+        {authChecked && (
+          <div style={{
+            background: "#0d0d0d",
+            border: "1px solid #1f1f1f",
+            padding: "12px 20px",
+            marginBottom: 32,
+            textAlign: "left",
+            fontSize: 13,
+          }}>
+            {userEmail ? (
+              <span style={{ color: "rgba(255,255,255,0.45)" }}>
+                Subscribing as:{" "}
+                <span style={{ color: "#fff", fontWeight: 700 }}>{userEmail}</span>
+              </span>
+            ) : (
+              <span style={{ color: "rgba(255,255,255,0.45)" }}>
+                Please{" "}
+                <a href="/auth" style={{ color: "#c8f135", fontWeight: 600, textDecoration: "none" }}>sign in</a>
+                {" "}first
+              </span>
+            )}
+          </div>
+        )}
+
         <p style={{
           fontSize: 10, fontWeight: 700, letterSpacing: "0.18em",
           textTransform: "uppercase", color: "#c8f135", margin: "0 0 20px",
