@@ -64,6 +64,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && !isPublic) {
+    // Skip subscription check for all payment-related routes
+    if (pathname.startsWith('/payment')) {
+      return supabaseResponse
+    }
+
     const serviceSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -80,12 +85,7 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const hasAccess = profile?.subscription_status === 'active'
-
-    const paymentRoutes = ['/payment', '/payment/success', '/payment/cancelled']
-    const isPaymentRoute = paymentRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
-
-    if (!hasAccess && !isPaymentRoute) {
+    if (profile?.subscription_status !== 'active' && !pathname.startsWith('/payment')) {
       const url = request.nextUrl.clone()
       url.pathname = '/payment'
       return NextResponse.redirect(url)

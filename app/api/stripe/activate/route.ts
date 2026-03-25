@@ -1,66 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   try {
     const { session_id } = await req.json()
+    if (!session_id) return NextResponse.json({ error: 'No session id' }, { status: 400 })
 
-    if (!session_id || typeof session_id !== 'string') {
-      return NextResponse.json({ error: 'session_id required' }, { status: 400 })
-    }
-
-    const cookieStore = await cookies()
-
-    const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
-    )
-
-    const { data: { user } } = await authClient.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const session = await getStripe().checkout.sessions.retrieve(session_id, {
-      expand: ['subscription'],
-    })
+    const stripe = getStripe()
+    const session = await stripe.checkout.sessions.retrieve(session_id)
 
     if (session.payment_status !== 'paid') {
       return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
     }
 
-    const serviceClient = createServerClient(
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const subscription = session.subscription as { id: string; current_period_end: number } | null
+    const userId = session.metadata?.supabase_user_id
 
-    const { error } = await serviceClient
-      .from('profiles')
-      .update({
-        subscription_status: 'active',
-        stripe_customer_id: session.customer as string,
-        ...(subscription && {
-          stripe_subscription_id: subscription.id,
-          subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        }),
-      })
-      .eq('id', user.id)
-
-    if (error) {
-      console.error('Activate update error:', error)
-      return NextResponse.json({ error: 'Failed to activate subscription' }, { status: 500 })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function getSubscriptionFields(subscriptionId: string | null | undefined): Promise<Record<string, any>> {
+      if (!subscriptionId) return {}
+      const sub = await getStripe().subscriptions.retrieve(subscriptionId)
+      return {
+        stripe_subscription_id: sub.id,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        subscription_period_end: new Date((sub as any).current_period_end * 1000).toISOString(),
+      }
     }
+
+    if (!userId) {
+      // Fallback: find profile by stripe_customer_id already stored during checkout
+      const { data: profileByCustomer } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('stripe_customer_id', session.customer as string)
+        .single()
+
+      if (profileByCustomer) {
+        const subFields = await getSubscriptionFields(session.subscription as string | null)
+        await supabase.from('profiles').update({
+          subscription_status: 'active',
+          ...subFields,
+        }).eq('id', profileByCustomer.id)
+        return NextResponse.json({ success: true })
+      }
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const subFields = await getSubscriptionFields(session.subscription as string | null)
+    await supabase.from('profiles').update({
+      subscription_status: 'active',
+      stripe_customer_id: session.customer as string,
+      ...subFields,
+    }).eq('id', userId)
 
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Activate error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to activate' }, { status: 500 })
   }
 }
