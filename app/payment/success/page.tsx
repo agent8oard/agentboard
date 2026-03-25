@@ -1,6 +1,55 @@
 "use client";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 30000;
 
 export default function PaymentSuccessPage() {
+  const [status, setStatus] = useState<"polling" | "active" | "timeout">("polling");
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    let stopped = false;
+    const start = Date.now();
+
+    async function poll() {
+      if (stopped) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // No session yet — keep waiting
+      } else {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("subscription_status")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.subscription_status === "active") {
+          stopped = true;
+          setStatus("active");
+          setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+          return;
+        }
+      }
+
+      const now = Date.now();
+      setElapsed(Math.floor((now - start) / 1000));
+
+      if (now - start >= POLL_TIMEOUT_MS) {
+        stopped = true;
+        setStatus("timeout");
+        return;
+      }
+
+      setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
+    poll();
+    return () => { stopped = true; };
+  }, []);
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -20,17 +69,18 @@ export default function PaymentSuccessPage() {
         }
         .confetti-dot {
           position: absolute;
-          width: 8px;
-          height: 8px;
+          width: 8px; height: 8px;
           border-radius: 2px;
-          top: 50%;
-          left: 50%;
+          top: 50%; left: 50%;
           animation: confetti-fall 1.4s ease-out forwards;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
 
-      {/* Confetti dots */}
-      {CONFETTI.map((c, i) => (
+      {/* Confetti — only show once active */}
+      {status === "active" && CONFETTI.map((c, i) => (
         <div
           key={i}
           className="confetti-dot"
@@ -44,39 +94,73 @@ export default function PaymentSuccessPage() {
         />
       ))}
 
-      <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-        {/* Checkmark */}
-        <div style={{ marginBottom: 32 }}>
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-            <circle cx="32" cy="32" r="32" fill="#c8f135" />
-            <path d="M18 32l10 10 18-18" stroke="#000" strokeWidth="3.5" strokeLinecap="square" strokeLinejoin="miter" />
-          </svg>
-        </div>
+      <div style={{ textAlign: "center", position: "relative", zIndex: 1, maxWidth: 440 }}>
 
-        <h1 style={{
-          fontSize: 40, fontWeight: 800, color: "#fff",
-          letterSpacing: "-0.03em", margin: "0 0 14px",
-        }}>
-          You&apos;re all set!
-        </h1>
-        <p style={{
-          fontSize: 16, color: "rgba(255,255,255,0.4)", margin: "0 0 40px", lineHeight: 1.6,
-        }}>
-          Your subscription is active. Welcome to Scope Pro.
-        </p>
+        {status === "polling" && (
+          <>
+            <div style={{
+              width: 64, height: 64, margin: "0 auto 32px",
+              border: "3px solid #1a1a1a",
+              borderTop: "3px solid #c8f135",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }} />
+            <h1 style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", margin: "0 0 12px" }}>
+              Activating your subscription...
+            </h1>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.35)", margin: 0, lineHeight: 1.6 }}>
+              Your payment was received. Confirming with Stripe
+              {elapsed > 0 ? ` (${elapsed}s)` : "…"}
+            </p>
+          </>
+        )}
 
-        <a href="/dashboard" style={{
-          display: "inline-block",
-          background: "#fff",
-          color: "#000",
-          padding: "16px 40px",
-          fontSize: 15,
-          fontWeight: 700,
-          letterSpacing: "0.02em",
-          textDecoration: "none",
-        }}>
-          Go to dashboard →
-        </a>
+        {status === "active" && (
+          <>
+            <div style={{ marginBottom: 32 }}>
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="32" fill="#c8f135" />
+                <path d="M18 32l10 10 18-18" stroke="#000" strokeWidth="3.5" strokeLinecap="square" strokeLinejoin="miter" />
+              </svg>
+            </div>
+            <h1 style={{ fontSize: 40, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", margin: "0 0 14px" }}>
+              You&apos;re all set!
+            </h1>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", margin: "0 0 40px", lineHeight: 1.6 }}>
+              Your subscription is active. Redirecting you now…
+            </p>
+          </>
+        )}
+
+        {status === "timeout" && (
+          <>
+            <div style={{ marginBottom: 32 }}>
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="32" fill="#c8f135" />
+                <path d="M18 32l10 10 18-18" stroke="#000" strokeWidth="3.5" strokeLinecap="square" strokeLinejoin="miter" />
+              </svg>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", margin: "0 0 14px" }}>
+              Payment received!
+            </h1>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", margin: "0 0 32px", lineHeight: 1.6 }}>
+              Your payment was received. It may take a moment to activate — your account will be ready shortly.
+            </p>
+            <a href="/dashboard" style={{
+              display: "inline-block",
+              background: "#fff",
+              color: "#000",
+              padding: "16px 40px",
+              fontSize: 15,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              textDecoration: "none",
+            }}>
+              Go to dashboard →
+            </a>
+          </>
+        )}
+
       </div>
     </div>
   );
