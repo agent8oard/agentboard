@@ -13,23 +13,39 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ['/', '/auth', '/dev', '/payment']
   const isPublic = publicRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
 
-  // CHECK 1: Valid dev session cookie bypasses everything
+  // CHECK 1: Valid dev session cookie bypasses everything — but only if no real auth user
   const devSessionId = request.cookies.get('dev_session')?.value
   if (devSessionId && devSessionId.length > 10) {
-    const adminClient = createClient(
+    const tempAuthClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return request.cookies.getAll() },
+          setAll() {},
+        },
+      }
     )
-    const { data: devSession } = await adminClient
-      .from('dev_sessions')
-      .select('id, is_active')
-      .eq('id', devSessionId)
-      .eq('is_active', true)
-      .single()
+    const { data: { user: realUser } } = await tempAuthClient.auth.getUser()
 
-    if (devSession) {
-      return supabaseResponse
+    if (!realUser) {
+      // No real user — check if dev session is valid
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { data: devSession } = await adminClient
+        .from('dev_sessions')
+        .select('id, is_active')
+        .eq('id', devSessionId)
+        .eq('is_active', true)
+        .single()
+
+      if (devSession) {
+        return supabaseResponse // Valid dev session, no real user — let through
+      }
     }
+    // Real user exists — ignore dev cookie, continue to normal auth checks
   }
 
   if (isPublic) return supabaseResponse

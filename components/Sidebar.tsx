@@ -18,24 +18,32 @@ export default function Sidebar() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("dev_session");
-      if (stored) {
-        const parsed = JSON.parse(stored) as DevSession;
-        if (parsed.sessionId && parsed.label) setDevSession(parsed);
-      }
-    } catch { /* ignore */ }
+    const init = async () => {
+      // Use getUser() (not getSession()) for authoritative server-verified check
+      const { data: { user } } = await supabase.auth.getUser();
 
-    supabase.auth.getSession().then(({ data }) => {
-      const u = data.session?.user;
-      setEmail(u?.email || "");
-      if (u) {
-        supabase.from("profiles").select("full_name").eq("id", u.id).single().then(({ data: p }) => {
+      if (user) {
+        // Real authenticated user — clear any stale dev session
+        setEmail(user.email || "");
+        localStorage.removeItem("dev_session");
+        document.cookie = "dev_session=; path=/; max-age=0; SameSite=Lax";
+        supabase.from("profiles").select("full_name").eq("id", user.id).single().then(({ data: p }) => {
           setFullName(p?.full_name || "");
         });
+      } else {
+        // No real user — check for dev session in localStorage
+        try {
+          const stored = localStorage.getItem("dev_session");
+          if (stored) {
+            const parsed = JSON.parse(stored) as DevSession;
+            if (parsed.sessionId && parsed.label) setDevSession(parsed);
+          }
+        } catch { /* ignore */ }
       }
+
       setAuthChecked(true);
-    });
+    };
+    init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function signOut() {

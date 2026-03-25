@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function DevPage() {
   const [password, setPassword] = useState("");
@@ -7,6 +8,7 @@ export default function DevPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    supabase.auth.signOut();
     setPassword("");
     setError("");
     localStorage.removeItem("dev_session");

@@ -17,6 +17,15 @@ export default async function DashboardPage() {
   const devSessionCookieId = cookieStore.get("dev_session")?.value;
 
   if (devSessionCookieId) {
+    // Real user wins — if a real auth session exists, ignore the dev cookie
+    const authCheck = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+    );
+    const { data: { user: realUser } } = await authCheck.auth.getUser();
+
+    if (!realUser) {
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -38,7 +47,8 @@ export default async function DashboardPage() {
         .order("created_at", { ascending: false });
       projects = devProjects ?? [];
     }
-  }
+    } // end !realUser
+  } // end devSessionCookieId
 
   if (!isDevAccount) {
     const supabase = createServerClient(

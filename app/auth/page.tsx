@@ -33,6 +33,8 @@ function AuthForm() {
         }
         if (data.session) {
           await fetch('/api/auth/create-profile', { method: 'POST' });
+          localStorage.removeItem('dev_session');
+          document.cookie = 'dev_session=; path=/; max-age=0; SameSite=Lax';
           window.location.href = "/dashboard";
         } else {
           setSuccess("Check your email to confirm your account.");
@@ -42,6 +44,8 @@ function AuthForm() {
         if (error) throw error;
         if (data.session) {
           await fetch('/api/auth/create-profile', { method: 'POST' });
+          localStorage.removeItem('dev_session');
+          document.cookie = 'dev_session=; path=/; max-age=0; SameSite=Lax';
           const redirect = searchParams.get("redirect") || "/dashboard";
           window.location.href = redirect;
         }
