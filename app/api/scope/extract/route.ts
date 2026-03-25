@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       // Dev mode: verify session against dev_sessions table
       const { data: devSession } = await supabase
         .from("dev_sessions")
-        .select("id, is_active")
+        .select("id, is_active, label")
         .eq("id", devSessionId)
         .eq("is_active", true)
         .single();
@@ -46,6 +46,23 @@ export async function POST(req: NextRequest) {
       // Rate limit by dev session
       const allowed = await rateLimit(`extract:dev:${devSession.id}`, 10, 60);
       if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+      // Ensure a profile exists for this dev session (satisfies FK constraint)
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", devSession.id)
+        .single();
+
+      if (!existingProfile) {
+        await supabase.from("profiles").insert({
+          id: devSession.id,
+          full_name: devSession.label || "Developer",
+          subscription_status: "active",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
 
       userId = devSession.id;
     } else {
@@ -65,14 +82,14 @@ export async function POST(req: NextRequest) {
       userId = user.id;
 
       // Ensure profile exists before inserting project
-      const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).single()
+      const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
       if (!profile) {
-        await supabase.from('profiles').insert({
+        await supabase.from("profiles").insert({
           id: user.id,
-          full_name: user.user_metadata?.full_name || '',
-          subscription_status: 'inactive',
+          full_name: user.user_metadata?.full_name || "",
+          subscription_status: "inactive",
           updated_at: new Date().toISOString(),
-        })
+        });
       }
     }
 
