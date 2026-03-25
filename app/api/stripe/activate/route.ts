@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
     const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(session_id)
 
+    // SECURITY CHECK - must be verified paid by Stripe
     if (session.payment_status !== 'paid') {
-      return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
+      return NextResponse.json({ error: 'Payment not verified' }, { status: 400 })
     }
 
     const supabase = createClient(
