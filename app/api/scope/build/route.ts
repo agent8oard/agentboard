@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
     }
 
     let userId: string;
+    let monthKey = "";
+    let usageCount = 0;
 
     if (devSessionId) {
       const { data: devSession } = await serviceClient
@@ -53,6 +55,21 @@ export async function POST(req: NextRequest) {
       if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
       userId = user.id;
+
+      // Monthly usage check
+      const now = new Date();
+      monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+      const { data: usageData } = await serviceClient
+        .from("api_usage")
+        .select("count")
+        .eq("user_id", userId)
+        .eq("action", "build")
+        .eq("month", monthKey)
+        .single();
+      usageCount = usageData?.count || 0;
+      if (usageCount >= 50) {
+        return NextResponse.json({ error: "Monthly limit reached. Your limit resets on the 1st of next month." }, { status: 429 });
+      }
     }
 
     // Sanitize answers (each capped at 2000 chars)
@@ -153,6 +170,17 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
     if (updateError) {
       console.error("DB update error:", updateError);
       return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    }
+
+    // Increment monthly usage (skip for dev sessions)
+    if (!devSessionId && monthKey) {
+      await serviceClient.from("api_usage").upsert({
+        user_id: userId,
+        action: "build",
+        month: monthKey,
+        count: usageCount + 1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,action,month" });
     }
 
     return NextResponse.json({ scope: result.scope, proposal: result.proposal, proposal_email: result.proposal_email, status: "complete" });

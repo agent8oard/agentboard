@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { selectedText, projectId, devSessionId } = body;
 
+    let userId = "";
+    let monthKey = "";
+    let usageCount = 0;
+
     // Dev session path
     if (devSessionId) {
       const adminClient = createClient(
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
         .eq("is_active", true)
         .single();
       if (!devSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      // Dev session valid — fall through to AI call below
+      // Dev session valid — skip usage limits, fall through to AI call below
     } else {
       const cookieStore = await cookies();
       const authClient = createServerClient(
@@ -39,6 +43,27 @@ export async function POST(req: NextRequest) {
       );
       const { data: { user } } = await authClient.auth.getUser();
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      userId = user.id;
+
+      // Monthly usage check
+      const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      const now = new Date();
+      monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+      const { data: usageData } = await serviceClient
+        .from("api_usage")
+        .select("count")
+        .eq("user_id", userId)
+        .eq("action", "explain")
+        .eq("month", monthKey)
+        .single();
+      usageCount = usageData?.count || 0;
+      if (usageCount >= 200) {
+        return NextResponse.json({ error: "Monthly limit reached. Your limit resets on the 1st of next month." }, { status: 429 });
+      }
     }
 
     if (!selectedText || typeof selectedText !== "string" || !selectedText.trim()) {
@@ -65,6 +90,21 @@ In 2-3 sentences, explain why this specific point matters for the freelancer —
 
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Unexpected response");
+
+    // Increment monthly usage (skip for dev sessions)
+    if (!devSessionId && userId && monthKey) {
+      const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      await serviceClient.from("api_usage").upsert({
+        user_id: userId,
+        action: "explain",
+        month: monthKey,
+        count: usageCount + 1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,action,month" });
+    }
 
     return NextResponse.json({ explanation: content.text });
   } catch (err: unknown) {

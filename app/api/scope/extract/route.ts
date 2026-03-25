@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
     if (!enquiry) return NextResponse.json({ error: "enquiry cannot be empty" }, { status: 400 });
 
     let userId: string;
+    let monthKey = "";
+    let usageCount = 0;
 
     if (devSessionId) {
       // Dev mode: verify session against dev_sessions table
@@ -80,6 +82,21 @@ export async function POST(req: NextRequest) {
       if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
       userId = user.id;
+
+      // Monthly usage check
+      const now = new Date();
+      monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+      const { data: usageData } = await supabase
+        .from("api_usage")
+        .select("count")
+        .eq("user_id", userId)
+        .eq("action", "extract")
+        .eq("month", monthKey)
+        .single();
+      usageCount = usageData?.count || 0;
+      if (usageCount >= 100) {
+        return NextResponse.json({ error: "Monthly limit reached. Your limit resets on the 1st of next month." }, { status: 429 });
+      }
 
       // Ensure profile exists before inserting project
       const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
@@ -152,6 +169,17 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
       risk_flags: risk_flags || [],
       updated_at: new Date().toISOString(),
     }).eq("id", project.id);
+
+    // Increment monthly usage (skip for dev sessions)
+    if (!devSessionId && monthKey) {
+      await supabase.from("api_usage").upsert({
+        user_id: userId,
+        action: "extract",
+        month: monthKey,
+        count: usageCount + 1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,action,month" });
+    }
 
     return NextResponse.json({ projectId: project.id, title: suggested_title, extracted: extractedInfo });
   } catch (err: unknown) {
