@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 
 const TABS = ["Paste enquiry", "AI analysis", "Clarify & scope", "Proposal output", "Key points"];
-const AUTO_DURATION = 4000;
 const CLIENT_BRIEF =
   "Hi, I need a website for my design studio. Something clean and modern with a portfolio section, about page, and contact form. We have some branding already. Need it done in about 6 weeks, budget is around $3,500. Let me know if you can help!";
 
@@ -11,20 +10,14 @@ export default function ProductShowcase() {
   const [tab, setTab] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [exiting, setExiting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [typedText, setTypedText] = useState("");
   const [showCursor, setShowCursor] = useState(true);
 
   const tabRef = useRef(0);
-  const pauseUntilRef = useRef(0);
-  const tabStartRef = useRef(Date.now());
   const transitionRef = useRef(false);
-  const rafRef = useRef<number | null>(null);
 
-  /* switchTo uses only refs + stable state setters — safe in stale closures */
-  function switchTo(newTab: number, manual = false) {
+  function switchTo(newTab: number) {
     if (transitionRef.current || newTab === tabRef.current) return;
-    if (manual) pauseUntilRef.current = Date.now() + 10000;
 
     transitionRef.current = true;
     setExiting(true);
@@ -33,30 +26,10 @@ export default function ProductShowcase() {
       tabRef.current = newTab;
       setTab(newTab);
       setAnimKey((k) => k + 1);
-      setProgress(0);
-      tabStartRef.current = Date.now();
       setExiting(false);
       transitionRef.current = false;
     }, 200);
   }
-
-  /* Progress bar + auto-advance via rAF */
-  useEffect(() => {
-    function tick() {
-      const now = Date.now();
-      const elapsed = now - tabStartRef.current;
-      const p = Math.min(elapsed / AUTO_DURATION, 1);
-      setProgress(p);
-      if (p >= 1 && now >= pauseUntilRef.current && !transitionRef.current) {
-        switchTo((tabRef.current + 1) % TABS.length);
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    }
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Blinking cursor */
   useEffect(() => {
@@ -150,19 +123,22 @@ export default function ProductShowcase() {
           {TABS.map((label, i) => (
             <button
               key={i}
-              onClick={() => switchTo(i, true)}
+              onClick={() => switchTo(i)}
               style={{
                 padding: "8px 20px",
                 fontSize: 13,
                 fontWeight: tab === i ? 700 : 500,
                 color: tab === i ? "#000" : "rgba(255,255,255,0.4)",
-                background: tab === i ? "#c8f135" : "transparent",
+                background: tab === i ? "#c8f135" : "#111",
                 border: `1px solid ${tab === i ? "#c8f135" : "#2a2a2a"}`,
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 fontFamily: "inherit",
                 letterSpacing: "0.01em",
+                transform: tab === i ? "scale(1.02)" : "scale(1)",
               }}
+              onMouseEnter={(e) => { if (tab !== i) (e.currentTarget as HTMLButtonElement).style.background = "#1a1a1a"; }}
+              onMouseLeave={(e) => { if (tab !== i) (e.currentTarget as HTMLButtonElement).style.background = "#111"; }}
             >
               {label}
             </button>
@@ -187,10 +163,6 @@ export default function ProductShowcase() {
             {tab === 4 && <Tab4 animKey={animKey} />}
           </div>
 
-          {/* Progress bar */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "#141414" }}>
-            <div style={{ height: "100%", width: `${progress * 100}%`, background: "#c8f135", transition: "width 0.1s linear" }} />
-          </div>
         </div>
 
         {/* ── Social proof ── */}
