@@ -42,20 +42,29 @@ export default function PaymentPage() {
   }
 
   async function handleSubscribe() {
-    setLoading(true);
-    setError("");
+    if (!userEmail) {
+      setError('Please sign in first')
+      return
+    }
+    setLoading(true)
+    setError('')
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Something went wrong");
-        setLoading(false);
-        return;
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        setError(data.error || 'Something went wrong. Please try again.')
+        setLoading(false)
+        return
       }
-      window.location.href = data.url;
-    } catch {
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
+      window.location.href = data.url
+    } catch (err) {
+      console.error('Subscribe error:', err)
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
     }
   }
 
