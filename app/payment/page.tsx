@@ -52,7 +52,7 @@ export default function PaymentPage() {
         setLoading(false);
         return;
       }
-      router.push(data.url);
+      window.location.href = data.url;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

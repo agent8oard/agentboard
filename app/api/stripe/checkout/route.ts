@@ -30,6 +30,17 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single()
 
+    // If no profile exists create one
+    if (!profile) {
+      await serviceClient.from('profiles').insert({
+        id: user.id,
+        full_name: user.user_metadata?.full_name || '',
+        subscription_status: 'inactive',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+    }
+
     let customerId = profile?.stripe_customer_id
 
     if (!customerId) {
@@ -58,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url })
   } catch (err) {
     console.error('Checkout error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
