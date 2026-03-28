@@ -15,7 +15,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "brand-design",
     name: "Brand Design",
-    icon: "🎨",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
     description: "Logo, identity, brand guidelines",
     extractPromptAddition: `This is a brand design project. Pay special attention to: number of logo concepts to present, brand guideline requirements, file format deliverables (AI, EPS, PNG, PDF), color palette and typography needs, primary vs secondary logo variations, icon or favicon requirements, brand application examples needed (mockups, stationery etc). Flag risks around: vague aesthetic direction, no reference brands provided, unclear usage rights (print vs digital vs merchandise).`,
     buildPromptAddition: `Generate scope for a brand design project. Standard industry inclusions: primary logo, color palette, typography selection, brand usage guidelines. Standard exclusions: print production, website design, social media content unless specified. Include clauses about: number of initial concepts presented (typically 2-3), revision rounds per concept, file ownership transfer on final payment, usage rights (digital/print/merchandise), kill fee if project cancelled after concepts presented.`,
@@ -54,7 +54,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "web-design",
     name: "Web Design",
-    icon: "🖥️",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
     description: "Website design and development",
     extractPromptAddition: `This is a web design or development project. Pay special attention to: exact number of pages, CMS requirements (WordPress, Webflow, Shopify etc), mobile responsiveness, browser compatibility requirements, hosting and domain situation, contact forms or other interactive elements, SEO requirements, content provision responsibility, go-live support needed. Flag risks around: vague page count, no content ready, unclear CMS preference, hosting not discussed.`,
     buildPromptAddition: `Generate scope for a web design/development project. Standard inclusions: agreed pages list, mobile responsive design, one contact form, basic on-page SEO setup, browser testing (Chrome, Safari, Firefox), 1 hour training on CMS if applicable. Standard exclusions: ongoing maintenance, hosting costs, domain registration, copywriting, photography, e-commerce unless specified. Include clauses about: content must be provided by client by specific date, timeline dependent on client feedback within 3 business days, hosting and ongoing maintenance quoted separately.`,
@@ -94,7 +94,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "copywriting",
     name: "Copywriting",
-    icon: "✍️",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`,
     description: "Website copy, content, and writing",
     extractPromptAddition: `This is a copywriting or content project. Pay special attention to: word count or page count, tone of voice requirements, target audience definition, SEO keyword requirements, number of revision rounds, content format (website, blog, ads, email), brand voice guidelines existence. Flag risks around: no word count defined, no audience brief, unclear approval process, SEO requirements undefined.`,
     buildPromptAddition: `Generate scope for a copywriting project. Standard inclusions: agreed page or word count, one round of structural revisions, one round of copy revisions, final proofread, delivery in Google Doc or Word format. Standard exclusions: SEO keyword research unless specified, translation, design layout, image sourcing. Include clauses about: client to provide brand voice guidelines and audience brief before work begins, approval process and timeline, usage rights, kill fee policy.`,
@@ -132,7 +132,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "photography",
     name: "Photography",
-    icon: "📷",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
     description: "Commercial, product, or portrait photography",
     extractPromptAddition: `This is a photography project. Pay special attention to: number of images required, shooting location, usage rights (web, print, advertising, social), editing and retouching requirements, turnaround time for edited images, raw files included or not, number of shoot days, talent or model requirements. Flag risks around: unlimited image requests, usage rights not defined, location not confirmed, no model releases discussed.`,
     buildPromptAddition: `Generate scope for a photography project. Standard inclusions: agreed shoot duration, agreed number of final edited images, standard retouching, delivery via online gallery, web resolution and print resolution files. Standard exclusions: raw files unless agreed, additional shoot days, model or talent fees, location hire fees, extensive retouching beyond standard. Include clauses about: usage rights definition, model release requirements, weather policy for outdoor shoots, additional usage licensing.`,
@@ -170,7 +170,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "video",
     name: "Video Production",
-    icon: "🎬",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>`,
     description: "Video, animation, and motion graphics",
     extractPromptAddition: `This is a video production project. Pay special attention to: video length and number of videos, format requirements (social, web, broadcast), voiceover or music requirements, number of revision rounds, turnaround time, raw footage ownership, subtitles or captions needed, script responsibility. Flag risks around: unlimited revisions on video, music licensing not discussed, format specifications unclear.`,
     buildPromptAddition: `Generate scope for a video production project. Standard inclusions: agreed video length and format, one round of structural edits, one round of fine cut revisions, colour grade, licensed background music if required, delivery in agreed formats. Standard exclusions: raw footage ownership, broadcast rights, subtitles unless specified, additional versions for different platforms. Include clauses about: revision rounds, music licensing, raw footage ownership, broadcast usage licensing.`,
@@ -208,7 +208,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "social-media",
     name: "Social Media",
-    icon: "📱",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
     description: "Social media management and content creation",
     extractPromptAddition: `This is a social media project. Pay special attention to: which platforms, number of posts per week or month, content creation vs strategy only, copywriting included or not, community management included or not, reporting frequency, ad management included or not, content approval process. Flag risks around: unlimited posting requests, no approval process defined, ad spend management not scoped.`,
     buildPromptAddition: `Generate scope for a social media management project. Standard inclusions: agreed number of posts per month per platform, captions and hashtags, scheduling, monthly performance report. Standard exclusions: ad spend management unless specified, community management unless specified, photography or video production unless specified, influencer management. Include clauses about: content approval process and timeline, ad spend billed separately, platform algorithm changes outside contractor control, minimum contract period.`,
@@ -245,7 +245,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "consulting",
     name: "Consulting",
-    icon: "💼",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
     description: "Strategy, consulting, and advisory services",
     extractPromptAddition: `This is a consulting or strategy project. Pay special attention to: deliverable format (report, presentation, workshop), number of stakeholders involved, access to internal data and teams required, confidentiality requirements, implementation support included or not, number of meetings or workshops. Flag risks around: scope of recommendations vs implementation, access to information not guaranteed, multiple stakeholders with conflicting views.`,
     buildPromptAddition: `Generate scope for a consulting project. Standard inclusions: defined number of discovery sessions, research and analysis, recommendations report or presentation, one round of revisions to final deliverable. Standard exclusions: implementation of recommendations, ongoing advisory unless specified, access to third-party data. Include clauses about: client cooperation and access to information, confidentiality, implementation support quoted separately, intellectual property of methodologies.`,
@@ -283,7 +283,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
   {
     id: "general",
     name: "General / Other",
-    icon: "⚡",
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
     description: "Any other type of project",
     extractPromptAddition:
       "Extract all relevant project information and generate appropriate clarifying questions for this type of project.",

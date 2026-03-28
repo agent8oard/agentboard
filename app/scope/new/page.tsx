@@ -7,14 +7,14 @@ import { INDUSTRY_TEMPLATES } from "@/lib/industryTemplates";
 export default function NewScopePage() {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
-  const [industryId, setIndustryId] = useState("general");
+  const [selectedIndustry, setSelectedIndustry] = useState<string>("");
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [enquiry, setEnquiry] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [limitError, setLimitError] = useState(false);
   const [focused, setFocused] = useState(false);
   const [devSessionId, setDevSessionId] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -26,6 +26,7 @@ export default function NewScopePage() {
     } catch { /* ignore */ }
   }, []);
 
+  const industryId = selectedIndustry || "general";
   const selectedTemplate = INDUSTRY_TEMPLATES.find((t) => t.id === industryId);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -73,30 +74,53 @@ export default function NewScopePage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               {INDUSTRY_TEMPLATES.map((t) => {
-                const isSelected = industryId === t.id;
+                const isSelected = selectedIndustry === t.id;
                 const isHovered = hoveredId === t.id;
                 return (
-                <button
-                  key={t.id}
-                  onClick={() => { setIndustryId(t.id); setStep(2); }}
-                  onMouseEnter={() => setHoveredId(t.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  style={{
-                    background: isSelected ? "#0a1a00" : "#000000",
-                    border: isSelected || isHovered ? "1px solid #c8f135" : "1px solid #1f1f1f",
-                    boxShadow: isSelected || isHovered ? "0 0 0 1px #c8f135" : "none",
-                    padding: "20px 16px",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-                  }}
-                >
-                  <div style={{ fontSize: 28, marginBottom: 10 }}>{t.icon}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--text4)", lineHeight: 1.5 }}>{t.description}</div>
-                </button>
-              );
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedIndustry(t.id)}
+                    onMouseEnter={() => setHoveredId(t.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    style={{
+                      background: isSelected ? "#0a1a00" : "#000000",
+                      border: isSelected || isHovered ? "1px solid #c8f135" : "1px solid #1f1f1f",
+                      boxShadow: isSelected || isHovered ? "0 0 0 1px #c8f135" : "none",
+                      padding: "20px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
+                    }}
+                  >
+                    <div
+                      style={{ color: isSelected ? "#c8f135" : "var(--text3)", marginBottom: 12, lineHeight: 0 }}
+                      dangerouslySetInnerHTML={{ __html: t.icon }}
+                    />
+                    <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#c8f135" : "var(--text)", marginBottom: 4 }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--text4)", lineHeight: 1.5 }}>{t.description}</div>
+                  </button>
+                );
               })}
+            </div>
+
+            <div style={{ marginTop: 32, display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setStep(2)}
+                disabled={!selectedIndustry}
+                style={{
+                  background: selectedIndustry ? "var(--accent)" : "var(--bg3)",
+                  color: selectedIndustry ? "var(--accent-text)" : "var(--text4)",
+                  border: "none",
+                  padding: "14px 32px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: selectedIndustry ? "pointer" : "not-allowed",
+                  letterSpacing: "0.02em",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                Continue →
+              </button>
             </div>
           </div>
         </main>
@@ -116,7 +140,7 @@ export default function NewScopePage() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
             <span style={{ fontSize: 13, padding: "4px 10px", background: "var(--bg3)", color: "var(--text3)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
-              {selectedTemplate?.icon} {selectedTemplate?.name}
+              {selectedTemplate?.name}
             </span>
             <button
               onClick={() => setStep(1)}

@@ -153,7 +153,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em" }}>{p.title || "Untitled project"}</div>
                   {industryTemplate && industryTemplate.id !== "general" && (
                     <span style={{ fontSize: 11, padding: "2px 7px", background: "var(--bg3)", color: "var(--text4)", fontWeight: 600, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
-                      {industryTemplate.icon} {industryTemplate.name}
+                      {industryTemplate.name}
                     </span>
                   )}
                 </div>
