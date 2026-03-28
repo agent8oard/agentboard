@@ -35,8 +35,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Already accepted" }, { status: 400 });
     }
 
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const now = new Date().toISOString();
 
     // Update portal to accepted
@@ -45,7 +43,6 @@ export async function POST(req: NextRequest) {
       .update({
         status: "accepted",
         accepted_at: now,
-        accepted_ip: ip,
         client_name: clientName,
         client_email: clientEmail,
         updated_at: now,

@@ -332,7 +332,7 @@ export default function PortalPage() {
                 {accepting ? "Processing..." : "I accept this scope →"}
               </button>
               <p style={{ fontSize: 12, color: "#aaa", margin: "12px 0 0" }}>
-                This acceptance is recorded with timestamp and IP address.
+                This acceptance is recorded with a timestamp for your records.
               </p>
             </div>
           ) : (

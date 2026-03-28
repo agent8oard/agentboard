@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
   const alwaysPublic = ['/_next', '/favicon']
   if (alwaysPublic.some(r => pathname.startsWith(r))) return supabaseResponse
 
-  const publicRoutes = ['/', '/auth', '/dev', '/payment']
+  const publicRoutes = ['/', '/auth', '/dev', '/payment', '/api/stripe', '/api/dev', '/api/auth', '/portal']
   const isPublic = publicRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
 
   // CHECK 1: Valid dev session cookie bypasses everything — but only if no real auth user
