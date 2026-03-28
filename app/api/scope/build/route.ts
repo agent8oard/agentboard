@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit } from "@/lib/rateLimit";
 import { sanitizeText } from "@/lib/sanitize";
+import { getTemplateById } from "@/lib/industryTemplates";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -109,7 +110,11 @@ export async function POST(req: NextRequest) {
       .map((q: string, i: number) => `Q: ${q}\nA: ${cleanAnswers[i] || "(no answer provided)"}`)
       .join("\n\n");
 
+    const industryId = (project.extracted_info as Record<string, unknown> | null)?.industry_id as string | undefined;
+    const template = industryId ? getTemplateById(industryId) : undefined;
+
     const prompt = `You are an expert project manager and proposal writer for freelancers and agencies. Based on the following client enquiry and clarifying answers, generate a comprehensive project scope and TWO proposal formats.
+${template ? `\n${template.buildPromptAddition}\n` : ""}
 
 Original enquiry:
 """
@@ -171,6 +176,17 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
       const match = content.text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Failed to parse AI response");
       result = JSON.parse(match[0]);
+    }
+
+    // Supplement sparse contract_clauses with template defaults
+    if (template && result.scope?.contract_clauses && result.scope.contract_clauses.length < 5) {
+      const existing: string[] = result.scope.contract_clauses;
+      for (const clause of template.defaultClauses) {
+        if (existing.length >= 6) break;
+        const clauseKey = clause.slice(0, 15).toLowerCase();
+        const isDupe = existing.some((c: string) => c.slice(0, 15).toLowerCase() === clauseKey);
+        if (!isDupe) existing.push(clause);
+      }
     }
 
     const { error: updateError } = await serviceClient.from("scope_projects").update({

@@ -2,9 +2,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import { INDUSTRY_TEMPLATES } from "@/lib/industryTemplates";
 
 export default function NewScopePage() {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [industryId, setIndustryId] = useState("general");
   const [enquiry, setEnquiry] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,12 +25,14 @@ export default function NewScopePage() {
     } catch { /* ignore */ }
   }, []);
 
+  const selectedTemplate = INDUSTRY_TEMPLATES.find((t) => t.id === industryId);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!enquiry.trim()) return;
     setLoading(true); setError(""); setLimitError(false);
     try {
-      const body: Record<string, string> = { enquiry: enquiry.trim() };
+      const body: Record<string, string> = { enquiry: enquiry.trim(), industryId };
       if (devSessionId) body.devSessionId = devSessionId;
 
       const res = await fetch("/api/scope/extract", {
@@ -48,6 +53,49 @@ export default function NewScopePage() {
     }
   }
 
+  if (step === 1) {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+        <Sidebar />
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "80px 24px" }}>
+          <div style={{ width: "100%", maxWidth: 720 }}>
+            <a href="/scope" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", display: "inline-block", marginBottom: 48 }}>
+              ← Back to projects
+            </a>
+
+            <h1 style={{ fontSize: 40, fontWeight: 800, color: "var(--text)", margin: "0 0 12px", letterSpacing: "-0.04em", lineHeight: 1.1 }}>
+              What type of project is this?
+            </h1>
+            <p style={{ fontSize: 15, color: "var(--text3)", margin: "0 0 48px", lineHeight: 1.7 }}>
+              Choose the closest match — this helps tailor the scope and contract clauses.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              {INDUSTRY_TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setIndustryId(t.id); setStep(2); }}
+                  style={{
+                    background: "var(--surface)",
+                    border: `2px solid ${industryId === t.id ? "var(--accent)" : "var(--border)"}`,
+                    padding: "20px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>{t.icon}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--text4)", lineHeight: 1.5 }}>{t.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
@@ -57,6 +105,18 @@ export default function NewScopePage() {
           <a href="/scope" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text4)", display: "inline-block", marginBottom: 48 }}>
             ← Back to projects
           </a>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+            <span style={{ fontSize: 13, padding: "4px 10px", background: "var(--bg3)", color: "var(--text3)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {selectedTemplate?.icon} {selectedTemplate?.name}
+            </span>
+            <button
+              onClick={() => setStep(1)}
+              style={{ fontSize: 12, color: "var(--text4)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0, letterSpacing: "0.02em" }}
+            >
+              Change
+            </button>
+          </div>
 
           <h1 style={{ fontSize: 40, fontWeight: 800, color: "var(--text)", margin: "0 0 12px", letterSpacing: "-0.04em", lineHeight: 1.1 }}>
             Paste the client enquiry

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { detectRedFlags } from "@/lib/redFlags";
+import { getTemplateById } from "@/lib/industryTemplates";
 
 interface Project {
   id: string;
@@ -11,6 +12,7 @@ interface Project {
   original_enquiry: string;
   portal_status?: string | null;
   portal_sent_at?: string | null;
+  extracted_info?: { industry_id?: string } | null;
 }
 
 function DeleteModal({ projectId, onClose, onDeleted }: { projectId: string; onClose: () => void; onDeleted: (id: string) => void }) {
@@ -133,6 +135,9 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
           const flags = p.original_enquiry ? detectRedFlags(p.original_enquiry) : [];
           const highCount = flags.filter((f) => f.flag.severity === "high").length;
           const otherCount = flags.filter((f) => f.flag.severity !== "high").length;
+          const industryTemplate = p.extracted_info?.industry_id
+            ? getTemplateById(p.extracted_info.industry_id)
+            : undefined;
 
           return (
           <div
@@ -144,7 +149,14 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
               style={{ display: "contents", color: "inherit" }}
             >
               <div style={{ padding: "20px 0" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em", marginBottom: 4 }}>{p.title || "Untitled project"}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em" }}>{p.title || "Untitled project"}</div>
+                  {industryTemplate && industryTemplate.id !== "general" && (
+                    <span style={{ fontSize: 11, padding: "2px 7px", background: "var(--bg3)", color: "var(--text4)", fontWeight: 600, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                      {industryTemplate.icon} {industryTemplate.name}
+                    </span>
+                  )}
+                </div>
                 {p.original_enquiry && (
                   <div style={{ fontSize: 13, color: "var(--text4)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: 400 }}>
                     {p.original_enquiry}

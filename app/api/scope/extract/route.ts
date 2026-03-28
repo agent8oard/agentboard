@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit, getIp } from "@/lib/rateLimit";
 import { sanitizeText } from "@/lib/sanitize";
+import { getTemplateById } from "@/lib/industryTemplates";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -20,6 +21,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const rawEnquiry = body?.enquiry;
     const devSessionId = body?.devSessionId as string | undefined;
+    const industryId = (body?.industryId as string | undefined) || "general";
+    const template = getTemplateById(industryId);
 
     if (!rawEnquiry || typeof rawEnquiry !== "string" || !rawEnquiry.trim()) {
       return NextResponse.json({ error: "enquiry is required" }, { status: 400 });
@@ -136,18 +139,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
     }
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
-      messages: [{
-        role: "user",
-        content: `You are an expert project scoper. Analyse this client enquiry and extract structured information.
+    const extractPrompt = `You are an expert project scoper. Analyse this client enquiry and extract structured information.
 
 Client enquiry:
 """
 ${enquiry}
 """
-
+${template ? `\n${template.extractPromptAddition}\n` : ""}
 Respond with ONLY a valid JSON object (no markdown, no code blocks) with these exact fields:
 {
   "suggested_title": "concise project title",
@@ -159,8 +157,12 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
   "missing_details": ["array of important details that are unclear or missing"],
   "risk_flags": ["array of potential risks or concerns for the project"],
   "clarifying_questions": ["array of 3-5 specific questions to ask the client to fill in the gaps"]
-}`
-      }]
+}`;
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: extractPrompt }]
     });
 
     const content = message.content[0];
@@ -177,10 +179,22 @@ Respond with ONLY a valid JSON object (no markdown, no code blocks) with these e
 
     const { suggested_title, clarifying_questions, risk_flags, ...extractedInfo } = extracted;
 
+    // Merge AI clarifying questions with template questions, cap at 6, deduplicate
+    const aiQuestions: string[] = clarifying_questions || [];
+    const templateQuestions: string[] = template?.clarifyingQuestions || [];
+    const mergedQuestions: string[] = [...aiQuestions];
+    for (const tq of templateQuestions) {
+      if (mergedQuestions.length >= 6) break;
+      const isDupe = mergedQuestions.some(
+        (q) => q.toLowerCase().includes(tq.toLowerCase().slice(0, 20))
+      );
+      if (!isDupe) mergedQuestions.push(tq);
+    }
+
     await supabase.from("scope_projects").update({
       title: suggested_title,
-      extracted_info: extractedInfo,
-      clarifying_questions: clarifying_questions || [],
+      extracted_info: { ...extractedInfo, industry_id: industryId },
+      clarifying_questions: mergedQuestions,
       risk_flags: risk_flags || [],
       updated_at: new Date().toISOString(),
     }).eq("id", project.id);

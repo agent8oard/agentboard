@@ -42,7 +42,7 @@ export default async function ScopePage() {
     if (devSession) {
       const { data: devProjects } = await serviceSupabase
         .from("scope_projects")
-        .select("id, title, status, created_at, original_enquiry")
+        .select("id, title, status, created_at, original_enquiry, extracted_info")
         .eq("user_id", devSession.id)
         .order("created_at", { ascending: false });
 
@@ -110,7 +110,7 @@ export default async function ScopePage() {
 
   const { data: projects } = await serviceSupabase
     .from("scope_projects")
-    .select("id, title, status, created_at, original_enquiry")
+    .select("id, title, status, created_at, original_enquiry, extracted_info")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
